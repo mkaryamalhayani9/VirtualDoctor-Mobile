@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>إنشاء حساب جديد</title>
+    <style>
+        /* 1. التنسيقات الأساسية (الوضع الداكن) */
+        body { 
+            font-family: 'Arial', sans-serif; 
+            background-color: #121212; 
+            text-align: right; 
+            direction: rtl; 
+            color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container { 
+            width: 90%; 
+            max-width: 450px; 
+            padding: 40px; 
+            background-color: #1e1e1e; 
+            border-radius: 15px; 
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4); 
+            border: 1px solid #333;
+        }
+        h2 { 
+            color: #007bff; 
+            text-align: center; 
+            margin-bottom: 30px; 
+        }
+        
+        /* 2. تنسيقات حقول الإدخال */
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #e0e0e0;
+            font-weight: bold;
+        }
+        input[type="text"],
+        input[type="email"],
+        input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            background-color: #333; 
+            color: #fff;
+            border: 1px solid #444; 
+            border-radius: 6px;
+            box-sizing: border-box;
+            margin-bottom: 20px;
+            transition: border-color 0.3s;
+        }
+        input:focus {
+            border-color: #007bff;
+            outline: none;
+        }
+
+        /* 3. تنسيق زر تسجيل الحساب */
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #28a745; 
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 15px;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        
+        /* 4. رسائل الخطأ */
+        .error {
+            background-color: #dc3545;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        
+        /* 5. رابط الانتقال للدخول */
+        p {
+            text-align: center;
+            margin-top: 20px;
+            color: #999;
+        }
+        p a {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        p a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>📝 إنشاء حساب جديد 📝</h2>
+        
+        {% if error %}
+            <p class="error">{{ error }}</p>
+        {% endif %}
+        
+        <form method="POST" action="{{ url_for('register') }}">
+            
+            <label for="username">اسم المستخدم:</label>
+            <input type="text" id="username" name="username" required>
+
+            <label for="email">البريد الإلكتروني:</label>
+            <input type="email" id="email" name="email" required>
+
+            <label for="password">كلمة المرور:</label>
+            <input type="password" id="password" name="password" required>
+            
+            <button type="submit">تسجيل الحساب</button>
+        </form>
+        
+        <p>
+            هل لديك حساب بالفعل؟ <a href="{{ url_for('login') }}">تسجيل الدخول</a>
+        </p>
+    </div>
+</body>
+</html>

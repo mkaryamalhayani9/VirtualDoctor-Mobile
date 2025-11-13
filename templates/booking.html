@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>حجز موعد</title>
+    <style>
+        /* 1. التنسيقات الأساسية (الوضع الداكن) */
+        body { 
+            font-family: 'Arial', sans-serif; 
+            background-color: #121212; 
+            text-align: right; 
+            direction: rtl; 
+            color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container { 
+            width: 90%; 
+            max-width: 500px; 
+            padding: 40px; 
+            background-color: #1e1e1e; 
+            border-radius: 15px; 
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4); 
+            border: 1px solid #333;
+        }
+        h2 { 
+            color: #28a745; /* أخضر لعنوان الحجز */
+            text-align: center; 
+            margin-bottom: 30px; 
+            padding-bottom: 10px;
+            border-bottom: 2px solid #28a745;
+        }
+        
+        /* 2. تنسيقات حقول الإدخال والاختيار */
+        .form-group {
+            margin-bottom: 25px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #e0e0e0;
+            font-weight: bold;
+        }
+        input[type="date"],
+        input[type="time"],
+        select {
+            width: 100%;
+            padding: 12px;
+            background-color: #333; 
+            color: #fff;
+            border: 1px solid #444; 
+            border-radius: 6px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+            font-size: 1em;
+        }
+        select option {
+            background-color: #333;
+            color: #fff;
+        }
+        input:focus, select:focus {
+            border-color: #28a745;
+            outline: none;
+        }
+
+        /* 3. تنسيق زر الحجز */
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff; 
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 20px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🗓️ حجز موعد مع الطبيب 🗓️</h2>
+        
+        <form method="POST" action="{{ url_for('book_appointment') }}">
+            
+            <div class="form-group">
+                <label for="doctor_id">اختيار الطبيب:</label>
+                <select id="doctor_id" name="doctor_id" required>
+                    <option value="" disabled selected>-- اختر طبيباً --</option>
+                    {% for doctor in doctors %}
+                        <option value="{{ doctor['id'] }}">
+                            {{ doctor['name'] }} ({{ doctor['specialty'] }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="date">التاريخ:</label>
+                <input type="date" id="date" name="date" required>
+            </div>
+
+            <div class="form-group">
+                <label for="time">الوقت:</label>
+                <input type="time" id="time" name="time" required>
+            </div>
+
+            <button type="submit">تأكيد الحجز</button>
+            <a href="{{ url_for('medical_consultation') }}" style="display: block; text-align: center; margin-top: 15px; color: #007bff; text-decoration: none;">العودة إلى الاستشارة</a>
+        </form>
+    </div>
+</body>
+</html>

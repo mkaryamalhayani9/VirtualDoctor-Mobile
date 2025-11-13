@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>تم الحجز بنجاح</title>
+    <style>
+        /* 1. التنسيقات الأساسية (الوضع الداكن) */
+        body { 
+            font-family: 'Arial', sans-serif; 
+            background-color: #121212; 
+            text-align: right; 
+            direction: rtl; 
+            color: #e0e0e0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container { 
+            width: 90%; 
+            max-width: 500px; 
+            padding: 40px; 
+            background-color: #1e1e1e; 
+            border-radius: 15px; 
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4); 
+            border: 1px solid #333;
+            text-align: center;
+        }
+        h2 { 
+            color: #28a745; 
+            margin-bottom: 20px; 
+        }
+        .success-message {
+            background-color: #1e3a24; /* أخضر داكن للنجاح */
+            border: 1px solid #4caf50;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        .detail-item {
+            font-size: 1.1em;
+            margin: 10px 0;
+            text-align: right;
+            border-bottom: 1px dotted #333;
+            padding-bottom: 5px;
+        }
+        .detail-item strong {
+            color: #007bff; /* أزرق لتمييز التفاصيل */
+            font-weight: bold;
+        }
+        .home-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .home-btn:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>✅ تم الحجز بنجاح!</h2>
+        
+        <div class="success-message">
+            <p style="font-size: 1.2em; color: #a5d6a7;">
+                تم تأكيد موعدك بنجاح. سيتم التواصل معك لتأكيد التفاصيل النهائية.
+            </p>
+        </div>
+
+        <h3>تفاصيل موعدك:</h3>
+        <div style="text-align: center;">
+            <p class="detail-item">الطبيب: <strong>{{ doctor }}</strong></p>
+            <p class="detail-item">التاريخ: <strong>{{ date }}</strong></p>
+            <p class="detail-item">الوقت: <strong>{{ time }}</strong></p>
+        </div>
+
+        <a href="{{ url_for('medical_consultation') }}" class="home-btn" style="margin-top: 30px;">العودة للصفحة الرئيسية</a>
+    </div>
+</body>
+</html>

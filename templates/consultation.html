@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>واجهة الاستشارة الطبية</title>
+    <style>
+        /* 1. التنسيقات الأساسية (الوضع الداكن) */
+        body { 
+            font-family: 'Arial', sans-serif; 
+            background-color: #121212; /* خلفية داكنة جداً */
+            text-align: right; 
+            direction: rtl; 
+            color: #e0e0e0; /* لون النص الفاتح */
+        }
+        .container { 
+            width: 90%; 
+            max-width: 800px; 
+            margin: 40px auto; 
+            padding: 30px; 
+            background-color: #1e1e1e; /* خلفية الصندوق داكنة */
+            border-radius: 15px; 
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4); 
+            border: 1px solid #333; 
+        }
+        h2 { 
+            color: #007bff; /* أزرق لعنوان جذاب */
+            text-align: center; 
+            margin-bottom: 25px; 
+            padding-bottom: 10px; 
+            border-bottom: 2px solid #007bff; 
+        }
+        
+        /* 2. شريط حالة المستخدم (Logout) */
+        .user-status {
+            text-align: left; 
+            padding: 10px;
+            border-bottom: 1px solid #333;
+            margin-bottom: 20px;
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            background-color: #2c2c2c; 
+            border-radius: 8px;
+        }
+        .logout-btn {
+            background-color: #dc3545; /* أحمر لزر الخروج */
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .logout-btn:hover {
+            background-color: #c82333;
+        }
+
+        /* 3. تنسيقات قائمة الأعراض (Checkboxes) */
+        .form-group { margin-bottom: 20px; }
+        .symptom-checkboxes {
+            /* تصميم شبكي لعرض الأعراض بشكل مرتب */
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            padding: 10px;
+            border: 1px solid #333;
+            border-radius: 8px;
+        }
+        .symptom-checkboxes label {
+            display: block;
+            background-color: #333; 
+            color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        /* تأثير عند مرور الماوس واختيار العرض */
+        .symptom-checkboxes label:hover {
+            background-color: #007bff; 
+        }
+        input[type="checkbox"] {
+            margin-left: 8px;
+            transform: scale(1.1);
+        }
+        
+        /* 4. تنسيق زر الإرسال */
+        button[type="submit"] {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background-color: #28a745; /* أخضر لزر الإرسال */
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 30px;
+        }
+        button[type="submit"]:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        
+        <div class="user-status">
+            {% if session.username %}
+                <span>مرحباً، *{{ session.username }}*</span>
+                <a href="{{ url_for('logout') }}" class="logout-btn">تسجيل الخروج</a>
+            {% else %}
+                <span>
+                    للحصول على خدمات متقدمة، يرجى 
+                    <a href="{{ url_for('login') }}" style="color: #007bff; text-decoration: none; font-weight: bold;">تسجيل الدخول</a>.
+                </span>
+            {% endif %}
+        </div>
+        
+        <h2>💊 واجهة الاستشارة الطبية 💊</h2>
+        
+        <form method="POST" action="{{ url_for('medical_consultation') }}">
+            <div class="form-group">
+                <label style="font-size: 1.1em; font-weight: bold; color: #e0e0e0;">الرجاء اختيار الأعراض التي تعاني منها:</label>
+                <div class="symptom-checkboxes">
+                    {% for symptom in symptoms %}
+                        <label>
+                            <input type="checkbox" name="symptom" value="{{ symptom }}">
+                            {{ symptom }}
+                        </label>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <button type="submit">الحصول على التشخيص الأولي</button>
+        </form>
+    </div>
+</body>
+</html>

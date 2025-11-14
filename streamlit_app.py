@@ -7,8 +7,10 @@ from datetime import datetime
 # ---------------------
 # إعداد الصفحة والـ CSS
 # ---------------------
-st.set_page_config(page_title="طبيب افتراضي AI", layout="centered", icon="⚕️")
-
+st.set_page_config(
+    page_title="طبيب افتراضي AI",
+    layout="centered"
+)
 # بسيطة لتجميل الصفحة
 st.markdown(
     """

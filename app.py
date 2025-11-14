@@ -1,247 +1,180 @@
 import sqlite3
-import os 
+import pandas as pd
+from flask import Flask, render_template, request, redirect, url_for, session
 import pickle
 import numpy as np
-from flask import Flask, render_template, request, redirect, url_for, session, g
+import os # <--- تم إضافته
 
-# ----------------- إعدادات Flask -----------------
-app = Flask(__name__)
-app.secret_key = 'your_super_secret_key_here' 
+# تحديد مسار المجلد الحالي للمشروع
+PROJECT_ROOT = os.path.dirname(os.path.abspath(_file_))
 
-# ----------------- إعداد قاعدة البيانات -----------------
-DATABASE = 'users.db'
+# تحديد مسار قاعدة البيانات باستخدام المسار المطلق
+DB_NAME = os.path.join(PROJECT_ROOT, 'virtual_doctor.db')
 
-def get_db():
-    # دالة لفتح اتصال بقاعدة البيانات
-    db = getattr(g, '_database', None)
-    if db is None:
-        db = g._database = sqlite3.connect(DATABASE)
-        db.row_factory = sqlite3.Row
-    return db
+# تحميل نموذج التعلم الآلي باستخدام المسار المطلق
+with open(os.path.join(PROJECT_ROOT, 'model.pkl'), 'rb') as file:
+    model = pickle.load(file)
 
-@app.teardown_appcontext
-def close_connection(exception):
-    # دالة لغلق الاتصال بقاعدة البيانات عند انتهاء الطلب
-    db = getattr(g, '_database', None)
-    if db is not None:
-        db.close()
+# تحديد مسار مجلد الـ templates للمساعدة في تحديد الموقع على الخادم
+TEMPLATES_FOLDER = os.path.join(PROJECT_ROOT, 'templates')
+
+# تعريف تطبيق Flask مع تحديد مسار الـ templates الجديد
+app = Flask(_name_, template_folder=TEMPLATES_FOLDER) # <--- سطر معدل
+app.secret_key = 'your_secret_key_here' # يجب تغيير هذا المفتاح إلى مفتاح سري حقيقي
+
+# --- دوال قاعدة البيانات ---
+
+def get_db_connection():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 def init_db():
-    # التأكد من وجود قاعدة البيانات وإنشاء الجداول
-    with app.app_context():
-        db = get_db()
-        
-        # 1. جدول المستخدمين (للتسجيل والدخول)
-        db.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY,
-                username TEXT UNIQUE NOT NULL,
-                email TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL
-            );
-        ''')
-        
-        # 2. جدول الأطباء (للحجز)
-        db.execute('''
-            CREATE TABLE IF NOT EXISTS doctors (
-                id INTEGER PRIMARY KEY,
-                name TEXT NOT NULL,
-                specialty TEXT NOT NULL,
-                is_available INTEGER NOT NULL
-            );
-        ''')
-        
-        # 3. جدول الحجوزات (لتخزين المواعيد)
-        db.execute('''
-            CREATE TABLE IF NOT EXISTS appointments (
-                id INTEGER PRIMARY KEY,
-                user_id INTEGER NOT NULL,
-                doctor_id INTEGER NOT NULL,  
-                appointment_date TEXT NOT NULL,
-                appointment_time TEXT NOT NULL,
-                diagnosis TEXT,
-                FOREIGN KEY (user_id) REFERENCES users (id),
-                FOREIGN KEY (doctor_id) REFERENCES doctors (id)  
-            );
-        ''')
+    conn = get_db_connection()
+    # جدول المستخدمين
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL
+        );
+    ''')
+    # جدول المواعيد
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS appointments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            age INTEGER NOT NULL,
+            date TEXT NOT NULL,
+            time TEXT NOT NULL,
+            phone TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+    ''')
+    conn.commit()
+    conn.close()
 
-        # إضافة الأطباء الافتراضيين (إذا لم يكونوا موجودين)
-        initial_doctors = [
-            ("د. أحمد علي", "عام", 1), 
-            ("د. فاطمة يوسف", "باطنية", 1), 
-            ("د. مريم خالد", "جلدية", 1)
-        ]
-        
-        existing_doctors = db.execute("SELECT COUNT(*) FROM doctors").fetchone()[0]
-        if existing_doctors == 0:
-            for name, specialty, is_available in initial_doctors:
-                db.execute(
-                    "INSERT INTO doctors (name, specialty, is_available) VALUES (?, ?, ?)",
-                    (name, specialty, is_available)
-                )
-        db.commit()
-
+# تهيئة قاعدة البيانات عند تشغيل التطبيق (للتأكد)
 init_db()
 
-# ----------------- إعدادات الذكاء الاصطناعي -----------------
-symptoms_list = [
-    'حمى', 'سعال', 'آلام في الجسم', 'تعب', 'احتقان الأنف', 'سيلان الأنف',
-    'التهاب الحلق', 'صداع', 'غثيان', 'قيء', 'إسهال', 'ألم في الرقبة',
-    'تشنج العضلات', 'حكة في العين', 'حساسية' # (15 عَرَضًا)
-]
-diseases_list = [
-    'الإنفلونزا الموسمية', 'نزلات البرد', 'حساسية الربيع', 'صداع التوتر'
-]
-
-# التحقق من وتحميل النموذج
-model = None
-try:
-    with open('model.pkl', 'rb') as file:
-        model = pickle.load(file)
-except FileNotFoundError:
-    print("FATAL ERROR: model.pkl not found. Please run train_model.py first.")
-    
-# ----------------- مسارات التطبيق (Routes) -----------------
+# --- مسارات التطبيق (Routes) ---
 
 @app.route('/')
-def index():
-    if 'username' not in session:
+def home():
+    if 'user_id' not in session:
         return redirect(url_for('login'))
-    return redirect(url_for('medical_consultation'))
+    return render_template('home.html')
 
-
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    error = None
-    if request.method == 'POST':
-        username = request.form['username']
-        email = request.form['email']
-        password = request.form['password']
-        
-        db = get_db()
-        try:
-            db.execute(
-                "INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
-                (username, email, password)
-            )
-            db.commit()
-            return redirect(url_for('login'))
-        except sqlite3.IntegrityError:
-            error = 'اسم المستخدم أو البريد الإلكتروني مستخدم بالفعل.'
-            
-    return render_template('register.html', error=error)
-
-
+# مسار تسجيل الدخول
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    error = None
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
         
-        db = get_db()
-        user = db.execute(
-            'SELECT * FROM users WHERE username = ? AND password = ?', 
-            (username, password)
-        ).fetchone()
+        conn = get_db_connection()
+        user = conn.execute('SELECT * FROM users WHERE username = ? AND password = ?', (username, password)).fetchone()
+        conn.close()
         
-        if user is None:
-            error = 'اسم المستخدم أو كلمة المرور غير صحيحة.'
+        if user:
+            session['user_id'] = user['id']
+            return redirect(url_for('home'))
         else:
-            session['username'] = user['username']
-            return redirect(url_for('medical_consultation'))
-            
-    return render_template('login.html', error=error)
+            return render_template('login.html', error='Invalid username or password')
+    return render_template('login.html')
 
+# مسار التسجيل
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        email = request.form['email']
 
+        try:
+            conn = get_db_connection()
+            conn.execute('INSERT INTO users (username, password, email) VALUES (?, ?, ?)', (username, password, email))
+            conn.commit()
+            conn.close()
+            return redirect(url_for('login'))
+        except sqlite3.IntegrityError:
+            return render_template('register.html', error='Username or Email already exists.')
+    return render_template('register.html')
+
+# مسار تسجيل الخروج
 @app.route('/logout')
 def logout():
-    session.pop('username', None)
+    session.pop('user_id', None)
     return redirect(url_for('login'))
 
-
-@app.route('/medical_consultation', methods=['GET', 'POST'])
-def medical_consultation():
-    if 'username' not in session:
+# مسار التشخيص
+@app.route('/consultation', methods=['GET', 'POST'])
+def consultation():
+    if 'user_id' not in session:
         return redirect(url_for('login'))
         
-    if request.method == 'POST' and model:
-        selected_symptoms = request.form.getlist('symptom')
-        
-        # 1. إنشاء متجه الإدخال (يجب أن يتطابق مع الـ 15 عَرَضًا)
-        input_vector = np.zeros(len(symptoms_list))
-        for symptom in selected_symptoms:
-            try:
-                index = symptoms_list.index(symptom)
-                input_vector[index] = 1
-            except ValueError:
-                pass
-        
-        # 2. التشخيص باستخدام النموذج
-        input_vector_reshaped = input_vector.reshape(1, -1)
-        probabilities = model.predict_proba(input_vector_reshaped)[0]
-        predicted_index = np.argmax(probabilities)
-        diagnosis = diseases_list[predicted_index]
-        confidence_score = probabilities[predicted_index] * 100
-        
-        # 3. تمرير النتائج
-        return redirect(url_for('results', 
-                                diagnosis=diagnosis, 
-                                symptoms=selected_symptoms, 
-                                score=confidence_score))
-        
-    return render_template('consultation.html', symptoms=symptoms_list)
-
-
-@app.route('/results')
-def results():
-    if 'username' not in session:
-        return redirect(url_for('login'))
-        
-    diagnosis = request.args.get('diagnosis', 'عدم تشخيص')
-    symptoms = request.args.getlist('symptoms')
-    score = request.args.get('score', 0.0) # استقبال نسبة الثقة
-    
-    return render_template('results.html', 
-                           diagnosis=diagnosis, 
-                           symptoms=symptoms,
-                           score=score) # تمرير نسبة الثقة إلى results.html
-
-
-@app.route('/book_appointment', methods=['GET', 'POST'])
-def book_appointment():
-    if 'username' not in session:
-        return redirect(url_for('login'))
-        
-    db = get_db()
-    user = db.execute('SELECT id FROM users WHERE username = ?', (session['username'],)).fetchone()
-    
-    # جلب قائمة الأطباء وأرقامهم من قاعدة البيانات
-    available_doctors = db.execute(
-        "SELECT id, name, specialty FROM doctors WHERE is_available = 1"
-    ).fetchall()
-    
     if request.method == 'POST':
-        doctor_id = request.form['doctor_id'] 
+        try:
+            # جمع المدخلات من النموذج
+            inputs = [
+                float(request.form.get('input1', 0)),
+                float(request.form.get('input2', 0)),
+                float(request.form.get('input3', 0)),
+                float(request.form.get('input4', 0)),
+                float(request.form.get('input5', 0)),
+                float(request.form.get('input6', 0)),
+                float(request.form.get('input7', 0)),
+                float(request.form.get('input8', 0))
+            ]
+            
+            # تحويل المدخلات إلى مصفوفة NumPy
+            features = np.array([inputs])
+            
+            # إجراء التنبؤ
+            prediction = model.predict(features)[0]
+            
+            # تحويل النتيجة إلى نص
+            result_text = "مرتفع" if prediction == 1 else "منخفض"
+            
+            return render_template('results.html', result=result_text, prediction_value=prediction)
+            
+        except Exception as e:
+            # في حالة حدوث أي خطأ
+            return render_template('consultation.html', error=f"An error occurred: {e}")
+            
+    return render_template('consultation.html')
+
+# مسار حجز موعد
+@app.route('/booking', methods=['GET', 'POST'])
+def booking():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+        
+    if request.method == 'POST':
+        user_id = session['user_id']
+        name = request.form['name']
+        age = request.form['age']
         date = request.form['date']
         time = request.form['time']
-        
-        doctor_info = db.execute("SELECT name FROM doctors WHERE id = ?", (doctor_id,)).fetchone()
-        
-        if not doctor_info:
-            return "خطأ: رقم الطبيب غير صحيح.", 400
+        phone = request.form['phone']
 
-        db.execute(
-            "INSERT INTO appointments (user_id, doctor_id, appointment_date, appointment_time) VALUES (?, ?, ?, ?)",
-            (user['id'], doctor_id, date, time)
-        )
-        db.commit()
-        
-        doctor_name = doctor_info['name'] 
-        return render_template('booking_success.html', doctor=doctor_name, date=date, time=time)
-        
-    return render_template('booking.html', doctors=available_doctors)
+        try:
+            conn = get_db_connection()
+            conn.execute('INSERT INTO appointments (user_id, name, age, date, time, phone) VALUES (?, ?, ?, ?, ?, ?)', 
+                         (user_id, name, age, date, time, phone))
+            conn.commit()
+            conn.close()
+            return redirect(url_for('booking_success'))
+        except Exception as e:
+            return render_template('booking.html', error=f"An error occurred: {e}")
+            
+    return render_template('booking.html')
 
-
-if __name__ == '__main__':
-    app.run(debug=True)
+# مسار نجاح الحجز
+@app.route('/booking_success')
+def booking_success():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    return render_template('booking_success.html')

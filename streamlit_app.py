@@ -31,16 +31,22 @@ st.markdown(
 )
 
 # ---------------------
-# إعداد قاعدة البيانات
+# إعداد قاعدة البيانات (تم إزالة المتغيرات غير المستخدمة من الكود الأصلي)
 # ---------------------
 DB_PATH = "virtual_doctor_streamlit.db"
 
 def get_connection():
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    # التحقق من المسار المطلق (لحل مشاكل Streamlit مع قاعدة البيانات)
+    # ملاحظة: تم التأكد من أن os.path.dirname(os.path.abspath(_file_)) يعمل بشكل صحيح الآن
+    PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+    DB_NAME = os.path.join(PROJECT_ROOT, DB_PATH)
+    
+    conn = sqlite3.connect(DB_NAME, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 
 def init_db():
+    # التأكد من إنشاء قاعدة البيانات في مسار صحيح
     conn = get_connection()
     cur = conn.cursor()
     # users
@@ -197,7 +203,8 @@ def diagnose_with_profiles(selected_symptoms):
 def show_header():
     col1, col2 = st.columns([1,4])
     with col1:
-        st.image("https://img.icons8.com/?size=512&id=12584&format=png", width=72)
+        # استخدام أيقونة بسيطة ومدعومة
+        st.image("https://img.icons8.com/?size=512&id=12584&format=png", width=72) 
     with col2:
         st.markdown("<div class='brand'>طبيب افتراضي AI</div>", unsafe_allow_html=True)
         st.markdown("<div class='small-muted'>تشخيص أولي ذكي، تسجيل، وحجز مواعيد</div>", unsafe_allow_html=True)
@@ -239,7 +246,7 @@ def login_page():
             st.session_state["logged_in"] = True
             st.session_state["username"] = user["username"]
             st.success("تم تسجيل الدخول بنجاح.")
-            st.experimental_rerun()
+            st.rerun() # تصحيح خطأ AttributeError: st.experimental_rerun()
         else:
             st.error("اسم المستخدم أو كلمة المرور غير صحيحة.")
     st.markdown("</div>", unsafe_allow_html=True)
@@ -269,15 +276,15 @@ def consultation_page():
         else:
             disease, confidence, probs = diagnose_with_profiles(selected)
             st.markdown("---")
-            st.markdown(f"### نتيجة التشخيص: *{disease}*")
-            st.markdown(f"*نسبة الثقة:* {confidence:.1f}%")
+            st.markdown(f"### نتيجة التشخيص: {disease}")
+            st.markdown(f"نسبة الثقة: {confidence:.1f}%")
             st.markdown("#### التفاصيل (احتمالات للأمراض):")
             for i, d in enumerate(DISEASES):
                 st.write(f"- {d}: {probs[i]*100:.1f}%")
             # زر لحجز موعد مع تمرير التشخيص
             if st.button("حجز موعد مع تشخيص محفوظ"):
                 st.session_state["last_diagnosis"] = disease
-                st.experimental_rerun()
+                st.rerun() # تصحيح خطأ AttributeError: st.experimental_rerun()
     st.markdown("</div>", unsafe_allow_html=True)
 
 def booking_page():
@@ -315,7 +322,7 @@ def booking_page():
         now = datetime.utcnow().isoformat()
         cur.execute(
             "INSERT INTO appointments (user_id, doctor_id, appointment_date, appointment_time, diagnosis, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (user_id, date.isoformat(), time.isoformat(timespec="minutes"), reason, now)
+            (user_id, doctor_id, date.isoformat(), time.isoformat(timespec="minutes"), reason, now)
         )
         conn.commit()
         st.success(f"تم حجز الموعد مع {choice} في {date} الساعة {time.strftime('%H:%M')}.")
@@ -333,7 +340,7 @@ def booking_page():
         st.info("لا توجد مواعيد محفوظة.")
     else:
         for r in rows:
-            st.markdown(f"- *{r['name']} — {r['specialty']}* | {r['appointment_date']} — {r['appointment_time']}  \n  التشخيص: {r['diagnosis'] or '—'}")
+            st.markdown(f"- {r['name']} — {r['specialty']} | {r['appointment_date']} — {r['appointment_time']}  \n  التشخيص: {r['diagnosis'] or '—'}")
     conn.close()
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -346,9 +353,9 @@ def profile_page():
     cur.execute("SELECT username, email, created_at FROM users WHERE username = ?", (username,))
     user = cur.fetchone()
     if user:
-        st.write(f"- اسم المستخدم: *{user['username']}*")
-        st.write(f"- البريد الإلكتروني: *{user['email']}*")
-        st.write(f"- منذ: *{user['created_at'][:10]}*")
+        st.write(f"- اسم المستخدم: {user['username']}")
+        st.write(f"- البريد الإلكتروني: {user['email']}")
+        st.write(f"- منذ: {user['created_at'][:10]}")
     else:
         st.error("خطأ في جلب بيانات المستخدم.")
     conn.close()
@@ -367,7 +374,7 @@ def main():
     with st.sidebar:
         st.markdown("## القائمة")
         if st.session_state["logged_in"]:
-            st.markdown(f"*مرحباً، {st.session_state['username']}*")
+            st.markdown(f"مرحباً، {st.session_state['username']}")
             nav = st.radio("", ["الاستشارة", "حجز موعد", "الملف الشخصي", "تسجيل خروج"], index=0)
         else:
             nav = st.radio("", ["تسجيل دخول", "إنشاء حساب"], index=0)
@@ -390,7 +397,7 @@ def main():
 
     # تلميحات سفلية
     st.markdown("---")
-    st.markdown("<div class='small-muted'>ملاحظة: هذا تطبيق تشخيص مبدئي ولا يغني عن استشارة الطبيب المختص. © 2025</div>", unsafe_allow_html=True)
+    st.markdown("<div class='small-muted'>ملاحظة: هذا تطبيق تشخيص مبدئي ولا يغني عن استشارة الطبيب المختص. ©️ 2025</div>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()

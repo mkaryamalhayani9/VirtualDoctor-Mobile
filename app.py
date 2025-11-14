@@ -27,7 +27,7 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-# 4. دالة التشخيص (يجب أن تتطابق مع طريقة تدريب النموذج)
+# 4. دالة التشخيص
 def diagnose_disease(symptoms_input):
     if not model_loaded:
         # رسالة تعرض عندما يكون النموذج معطلاً
@@ -38,7 +38,7 @@ def diagnose_disease(symptoms_input):
         features = np.array([symptoms_input])
         prediction = model.predict(features)
         
-        # قيمة الثقة (يمكنكِ تعديلها لتناسب نموذجكِ)
+        # قيمة الثقة
         confidence_score = 90.0
         
         disease_name = prediction[0]
@@ -58,7 +58,7 @@ with st.form("diagnosis_form"):
     
     # ****************
     # يجب تكرار هذه العناصر بناءً على الأعراض الفعلية لنموذجكِ:
-    # (مثال: استخدام sliders للأعراض ذات القيمة العددية)
+    # (الأعراض التي كان يتوقعها نموذجكِ)
     # ****************
     
     s1 = st.slider("درجة الحرارة (Fever) - القيمة من 0 إلى 5", 
@@ -74,7 +74,7 @@ with st.form("diagnosis_form"):
 
 # 6. عرض النتائج عند الضغط على الزر
 if submitted:
-    # جمع المدخلات في قائمة (يجب أن يتطابق الترتيب مع النموذج)
+    # جمع المدخلات في قائمة
     symptoms_input = [s1, s2, s3] 
     
     diagnosis, score = diagnose_disease(symptoms_input)
@@ -96,7 +96,9 @@ if submitted:
     st.markdown("---")
     
     if diagnosis == "التشخيص معطل مؤقتاً بسبب قيود الخادم":
-        st.error("*⚠️ تنبيه هام:* النموذج معطل بسبب مشكلة الخادم. لكن واجهة الويب تعمل بنجاح.")
+        st.error("""
+        *⚠️ تنبيه هام:* النموذج معطل بسبب مشكلة الخادم. لكن واجهة الويب تعمل بنجاح.
+        """)
     elif diagnosis == "عدم تشخيص" or score < 40:
         st.error("""
         *⚠️ تنبيه هام:* نظراً لعدم تطابق الأعراض أو لقلة الثقة، 
@@ -105,5 +107,5 @@ if submitted:
     else:
         st.success("""
         *✅ توصيات أولية:* بما أن نسبة الثقة عالية، يمكن البدء بالعلاج الأولي 
-        مثل الراحة تناول السوائل.
-       """ )
+        مثل الراحة وتناول السوائل.
+        """)

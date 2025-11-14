@@ -6,7 +6,7 @@ import sqlite3
 import os
 
 # 1. تحديد المسار المطلق للملفات
-PROJECT_ROOT = os.path.dirname(os.path.abspath(_file_))
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 DB_NAME = os.path.join(PROJECT_ROOT, 'virtual_doctor.db')
 
 # 2. تحميل نموذج التعلم الآلي

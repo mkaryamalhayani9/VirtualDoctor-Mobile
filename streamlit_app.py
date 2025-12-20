@@ -18,23 +18,25 @@ st.markdown(r'''
     .doc-card { background-color: #0d0d0d; padding: 20px; border-radius: 15px; border-right: 6px solid #40E0D0; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05); }
     .slot-taken { background-color: #1a1a1a; color: #555; padding: 8px; border-radius: 5px; text-align: center; text-decoration: line-through; font-size: 12px; border: 1px solid #333; }
     .warning-box { background-color: #332b00; color: #ffcc00; padding: 10px; border-radius: 8px; font-size: 12px; border: 1px solid #ffcc00; margin-top: 10px; text-align: center; }
-    /* الزر الأبيض الفخم */
+    
+    /* إرجاع الزر الفيروزي المتدرج */
     .stButton>button { 
-        background: #ffffff !important; 
+        background: linear-gradient(135deg, #1d4e4a 0%, #40E0D0 100%) !important; 
         color: #000000 !important; 
         font-weight: bold; 
         border-radius: 8px; 
         width: 100%; 
         border: none;
+        transition: transform 0.2s ease;
     }
     .stButton>button:hover {
-        background: #40E0D0 !important;
-        color: #000000 !important;
+        transform: scale(1.02);
+        box-shadow: 0px 0px 15px rgba(64, 224, 208, 0.4);
     }
     </style>
     ''', unsafe_allow_html=True)
 
-# --- 2. محرك البيانات ---
+# --- 2. محرك البيانات والتشخيصات ---
 def init_db():
     conn = sqlite3.connect("al_doctor_final.db")
     conn.execute('CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT)')
@@ -84,7 +86,6 @@ if "view" not in st.session_state: st.session_state.view = "login"
 def safe_dist(u_loc, d_lat, d_lon):
     try:
         lat1, lon1 = u_loc['coords']['latitude'], u_loc['coords']['longitude']
-        # إصلاح بسيط لمعادلة المسافة لضمان الدقة
         return round(math.sqrt((lat1-d_lat)*2 + (lon1-d_lon)*2) * 111, 1)
     except: return 0.0
 
@@ -129,7 +130,6 @@ elif st.session_state.view == "app":
         st.success(f"🤖 تحليل الذكاء الاصطناعي: {info['diag']} (دقة التوقع: {info['acc']})")
         st.markdown(f'<div class="warning-box">⚠️ تنبيه: هذا التشخيص استرشادي ناتج عن ذكاء اصطناعي ولا يعتبر استشارة طبية معتمدة. يرجى زيارة الطبيب المختص فوراً.</div>', unsafe_allow_html=True)
         
-        # تصحيح مكان سطر التخصص المطلوب ونتائج الأطباء
         st.markdown(f'<div style="text-align: right; font-size: 20px; font-weight: bold; margin-top:15px;">التخصص المطلوب: {info["spec"]}</div>', unsafe_allow_html=True)
         
         results = []
@@ -163,6 +163,7 @@ elif st.session_state.view == "app":
                         st.markdown(f'<div class="slot-taken">{t} 🔒</div>', unsafe_allow_html=True)
                     else:
                         if st.button(f"{t}", key=f"{d['name']}_{t}"):
+                            st.balloons()
                             st.markdown(f'<div style="color: #40E0D0; text-align: right; font-size: 13px;">تم اختيار الساعة {t}</div>', unsafe_allow_html=True)
             
             st.markdown('</div>', unsafe_allow_html=True)

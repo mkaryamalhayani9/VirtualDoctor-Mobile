@@ -118,8 +118,7 @@ elif st.session_state.view == "app":
         st.success(f"🤖 تحليل الذكاء الاصطناعي: {info['diag']} (دقة التوقع: {info['acc']})")
         st.markdown(f'<div class="warning-box">⚠️ تنبيه: هذا التشخيص استرشادي ناتج عن ذكاء اصطناعي ولا يعتبر استشارة طبية معتمدة. يرجى زيارة الطبيب المختص فوراً.</div>', unsafe_allow_html=True)
         
-        st.markdown(f"#### التخصص المطلوب: {info['spec']}")
-
+st.markdown(f'<div style="text-align: right; font-size: 20px; font-weight: bold;">التخصص المطلوب: {info["spec"]}</div>', unsafe_allow_html=True)
         results = []
         for d in DOCTORS_DB:
             dist = safe_dist(user_location, d['lat'], d['lon'])
@@ -138,17 +137,22 @@ elif st.session_state.view == "app":
                 <div style="color:#888; font-size:14px; margin-bottom:10px;">{d['title']}</div>
             ''', unsafe_allow_html=True)
             
-            st.write("جدول مواعيد اليوم:")
-            t_cols = st.columns(5)
-            random.seed(d['name'])
-            # المواعيد تبدأ من الساعة 3 كما طلبت
-            slots = ["3:00", "3:30", "4:00", "4:30", "5:00"]
-            for i, t in enumerate(slots):
-                is_taken = random.choice([True, False])
-                with t_cols[i]:
-                    if is_taken:
-                        st.markdown(f'<div class="slot-taken">محجوز 🔒</div>', unsafe_allow_html=True)
-                    else:
-                        if st.button(f"{t} ✅", key=f"{d['name']}_{t}"):
-                            st.success(f"تم الحجز الساعة {t}")
-            st.markdown('</div>', unsafe_allow_html=True)
+          # جدول مواعيد اليوم - تنسيق أبيض فخم ومحاذاة لليمنة
+        st.markdown('<div style="text-align: right; font-weight: bold; margin-top: 20px; color: #ffffff;">جدول مواعيد اليوم:</div>', unsafe_allow_html=True)
+        
+        t_cols = st.columns(5)
+        random.seed(d['name'])
+        slots = ["3:00", "3:30", "4:00", "4:30", "5:00"]
+        
+        for i, t in enumerate(slots):
+            is_taken = random.choice([True, False, False])
+            with t_cols[i]:
+                if is_taken:
+                    st.markdown(f'<div class="slot-taken" style="background-color: #1a1a1a; border: 1px solid #333; color: #555;">{t} 🔒</div>', unsafe_allow_html=True)
+                else:
+                    # زر أبيض شفاف يتحول لأبيض كامل عند اللمس
+                    if st.button(f"{t}", key=f"{d['name']}_{t}"):
+                        st.markdown(f'<div style="color: #40E0D0; text-align: right; font-size: 13px;">تم اختيار الساعة {t}</div>', unsafe_allow_html=True)
+        
+        # إغلاق كرت الطبيب
+        st.markdown('</div>', unsafe_allow_html=True) 

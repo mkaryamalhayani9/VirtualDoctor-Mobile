@@ -5,34 +5,21 @@ import math
 import random
 from streamlit_js_eval import get_geolocation
 
-# --- 1. التصميم البصري (رجوع الخط الفخم وتنسيق المواعيد) ---
-st.set_page_config(page_title="Al Doctor AI", layout="wide")
+# --- 1. التصميم البصري الفخم ---
+st.set_page_config(page_title="Al Doctor AI - Pro", layout="wide")
 
 st.markdown(r'''
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Tajawal:wght@400;700&display=swap');
     * { font-family: 'Tajawal', sans-serif; direction: rtl; }
     .stApp { background-color: #050505; color: #e0e0e0; }
-    
-    /* رجوع خط اسم الموقع المميز */
-    .classic-logo { 
-        font-family: 'Playfair Display', serif; color: #40E0D0; 
-        text-align: center; font-size: 50px; margin-bottom: 10px;
-    }
-    
+    .classic-logo { font-family: 'Playfair Display', serif; color: #40E0D0; text-align: center; font-size: 50px; margin-bottom: 10px; }
     .auth-box { max-width: 400px; margin: auto; padding: 25px; background-color: #0d0d0d; border-radius: 15px; border: 1px solid rgba(64, 224, 208, 0.2); }
-    
-    .doc-card { 
-        background-color: #0d0d0d; padding: 20px; border-radius: 15px; 
-        border-right: 6px solid #40E0D0; margin-bottom: 20px; 
-        border: 1px solid rgba(255,255,255,0.05);
-    }
-    
-    /* تنسيق المواعيد المتاحة والمحجوزة */
-    .slot-taken { background-color: #222; color: #555; padding: 8px; border-radius: 5px; text-align: center; text-decoration: line-through; border: 1px solid #333; font-size: 12px; }
-    .slot-avail { background-color: #1d4e4a; color: #40E0D0; padding: 8px; border-radius: 5px; text-align: center; border: 1px solid #40E0D0; font-size: 12px; font-weight: bold; }
-    
-    .stButton>button { background: linear-gradient(135deg, #1d4e4a 0%, #40E0D0 100%); color: #000 !important; font-weight: bold; border-radius: 8px; }
+    .doc-card { background-color: #0d0d0d; padding: 20px; border-radius: 15px; border-right: 6px solid #40E0D0; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05); }
+    .slot-taken { background-color: #222; color: #555; padding: 8px; border-radius: 5px; text-align: center; text-decoration: line-through; font-size: 12px; }
+    .slot-avail { background-color: #1d4e4a; color: #40E0D0; padding: 8px; border-radius: 5px; text-align: center; font-size: 12px; font-weight: bold; }
+    .warning-box { background-color: #332b00; color: #ffcc00; padding: 10px; border-radius: 8px; font-size: 12px; border: 1px solid #ffcc00; margin-top: 10px; text-align: center; }
+    .stButton>button { background: linear-gradient(135deg, #1d4e4a 0%, #40E0D0 100%); color: #000 !important; font-weight: bold; border-radius: 8px; width: 100%; }
     </style>
     ''', unsafe_allow_html=True)
 
@@ -92,39 +79,47 @@ def safe_dist(u_loc, d_lat, d_lon):
 
 st.markdown('<div class="classic-logo">Al Doctor</div>', unsafe_allow_html=True)
 
-# واجهة الدخول (بدون تنبيه "الاسم مأخوذ")
-if st.session_state.view == "login":
+# --- 3. واجهة إنشاء الحساب والدخول المرتبة ---
+if st.session_state.view in ["login", "signup"]:
     st.markdown('<div class="auth-box">', unsafe_allow_html=True)
-    u = st.text_input("اسم المستخدم")
-    p = st.text_input("كلمة المرور", type="password")
-    if st.button("دخول / تسجيل"):
-        if u and p:
-            conn = sqlite3.connect("al_doctor_final.db")
-            hp = hashlib.sha256(p.encode()).hexdigest()
-            # محاولة إدخال مستخدم جديد، إذا موجود أصلاً يسوي تسجيل دخول عادي
-            try:
-                conn.execute('INSERT INTO users VALUES (?,?)', (u, hp))
-                conn.commit()
-            except: pass # إذا موجود مسبقاً، يكمل طبيعي
+    st.subheader("تسجيل الدخول" if st.session_state.view == "login" else "إنشاء حساب جديد")
+    u = st.text_input("اسم المستخدم", key="u_field")
+    p = st.text_input("كلمة المرور", type="password", key="p_field")
+    
+    if st.session_state.view == "login":
+        if st.button("دخول"):
             st.session_state.user, st.session_state.view = u, "app"
             st.rerun()
+        st.write("---")
+        if st.button("لا تملك حساب؟ سجل الآن"):
+            st.session_state.view = "signup"
+            st.rerun()
+    else:
+        if st.button("تأكيد إنشاء الحساب"):
+            st.session_state.user, st.session_state.view = u, "app"
+            st.rerun()
+        if st.button("رجوع لتسجيل الدخول"):
+            st.session_state.view = "login"
+            st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
-
 elif st.session_state.view == "app":
     user_location = get_geolocation()
     st.markdown('<div class="auth-box" style="max-width:500px">', unsafe_allow_html=True)
     selected = st.multiselect("حدد الأعراض (يمكنك اختيار أكثر من واحد):", list(SYMPTOMS_DB.keys()))
-    if st.button("ابحث عن الطبيب الأقرب 🔍"):
+    if st.button("شخص الآن وحدد أقرب طبيب 🔍"):
         if selected: st.session_state.active_s = selected
     st.markdown('</div>', unsafe_allow_html=True)
 
     if "active_s" in st.session_state:
         main_s = max(st.session_state.active_s, key=lambda s: SYMPTOMS_DB[s]['urgency'])
         info = SYMPTOMS_DB[main_s]
-        st.write("---")
-        st.info(f"التحليل: {info['diag']} | التخصص المطلوب: {info['spec']}")
+           st.write("---")
+        st.success(f"🤖 تحليل الذكاء الاصطناعي: {info['diag']} (دقة التوقع: {info['acc']})")
+        st.markdown(f'<div class="warning-box">⚠️ تنبيه: هذا التشخيص استرشادي ناتج عن ذكاء اصطناعي ولا يعتبر استشارة طبية معتمدة. يرجى زيارة الطبيب المختص فوراً.</div>', unsafe_allow_html=True)
+        
+        st.markdown(f"#### التخصص المطلوب: {info['spec']}")
 
-        # فرز الأطباء
+        # فرز الأطباء حسب الأقرب
         results = []
         for d in DOCTORS_DB:
             dist = safe_dist(user_location, d['lat'], d['lon'])
@@ -137,12 +132,19 @@ elif st.session_state.view == "app":
             st.markdown(f'''
             <div class="doc-card">
                 <div style="display:flex; justify-content:space-between">
-                    <span style="color:#40E0D0; font-size:20px; font-weight:bold;">{d['name']}</span>
-                    <span style="font-size:12px;">📍 {d['area']} ({res['dist']} كم)</span>
+                    <span style="color:#40E0D0; font-size:18px; font-weight:bold;">{d['name']}</span>
+                    <span style="font-size:12px;">📍 {d['area']} (يبعد {res['dist']} كم)</span>
                 </div>
-                <div style="color:#888; font-size:14px; margin-bottom:10px;">{d['title']}</div>
+                <div style="color:#888; font-size:13px;">{d['title']}</div>
             ''', unsafe_allow_html=True)
             
+            # جدول المواعيد
+            t_cols = st.columns(5)
+            random.seed(d['name'])
+            slots = ["4:00", "4:30", "5:00", "5:30", "6:00"]
+            for i, t in enumerate(slots):
+                is_taken = random.choice([True, False])
+                with t_cols[i]:
             # عرض المواعيد المتاحة والمحجوزة
             st.write("جدول مواعيد اليوم:")
             t_cols = st.columns(5)

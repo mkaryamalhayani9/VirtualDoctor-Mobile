@@ -93,7 +93,7 @@ st.markdown('<div class="classic-logo">Al Doctor</div>', unsafe_allow_html=True)
 
 if st.session_state.view in ["login", "signup"]:
     st.markdown('<div class="auth-box">', unsafe_allow_html=True)
-    st.subheader("تسجيل الدخول" if st.session_state.view == "login" else "إنشاء حساب جديد")
+st.markdown(f'<div style="text-align: right; font-size: 24px; font-weight: bold; color: #40E0D0; margin-bottom: 20px;">{"تسجيل الدخول" if st.session_state.view == "login" else "إنشاء حساب جديد"}</div>', unsafe_allow_html=True)
     u = st.text_input("اسم المستخدم", key="u_field")
     p = st.text_input("كلمة المرور", type="password", key="p_field")
     

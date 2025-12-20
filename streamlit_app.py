@@ -1,149 +1,104 @@
 import streamlit as st
-import hashlib
 import math
 import time
-from datetime import date
+from datetime import datetime
 from streamlit_js_eval import get_geolocation
 
-# --- 1. التنسيق البصري (Elite Emerald UI) ---
+# --- 1. التنسيق البصري ---
 st.set_page_config(page_title="AI Doctor Premium", layout="wide")
-
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap');
     * { font-family: 'Tajawal', sans-serif; direction: rtl; }
     .stApp { background: #050a0b; color: #e0f2f1; }
-    
-    .main-header { text-align: center; color: #71B280; font-size: 42px; font-weight: 700; margin-top: 20px; }
-    
-    .portal-box {
-        max-width: 500px; margin: auto; padding: 30px;
-        background: rgba(255, 255, 255, 0.04); border-radius: 20px;
-        border: 1px solid rgba(113, 178, 128, 0.2);
-        box-shadow: 0 15px 45px rgba(0,0,0,0.6);
-    }
-
-    .stButton>button {
-        width: 100%; border-radius: 12px; height: 3.2em; font-weight: bold;
-        background: linear-gradient(135deg, #134E5E 0%, #71B280 100%); color: white; border: none;
-    }
-    
-    .stTextInput>div>div>input {
-        background: #0d1b1e !important; color: white !important;
-        text-align: right; border-radius: 10px !important;
-    }
-
-    .doc-card {
-        background: rgba(113, 178, 128, 0.1); padding: 15px; border-radius: 12px;
-        border-right: 5px solid #71B280; margin-top: 15px; text-align: right;
-    }
+    .portal-box { max-width: 800px; margin: auto; padding: 25px; background: rgba(255, 255, 255, 0.04); border-radius: 20px; border: 1px solid rgba(113, 178, 128, 0.2); }
+    .emergency-box { background: #4a1a1a; border: 2px solid #ff4b4b; padding: 15px; border-radius: 12px; text-align: center; margin-bottom: 20px; }
+    .doc-card { background: rgba(113, 178, 128, 0.1); padding: 12px; border-radius: 10px; border-right: 5px solid #71B280; margin-bottom: 10px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. البيانات الطبية (المنطق من كودك) ---
+# --- 2. البيانات الطبية ---
 DISEASE_PROFILES = {
-    "الإنفلونزا الموسمية": {"حمى": 2, "سعال": 1, "آلام الجسم": 1.5, "تعب": 2},
-    "نزلات البرد": {"سعال": 1, "احتقان": 1.5, "سيلان": 1.5, "حلق": 1},
-    "التهاب رئوي": {"حمى": 2, "سعال": 2, "ضيق نفس": 2, "ألم صدر": 1.5},
-    "COVID-19": {"حمى": 1.8, "سعال": 1.5, "فقدان شم": 2, "فقدان تذوق": 2, "ضيق نفس": 1.5},
-    "تسمم غذائي": {"غثيان": 2, "قيء": 2, "إسهال": 2, "ألم بطن": 1.5}
+    "ألم صدر حاد": {"spec": "قلبية", "emergency": True},
+    "ضيق نفس شديد": {"spec": "جهاز تنفسي", "emergency": True},
+    "حمى وسعال": {"spec": "باطنية", "emergency": False},
+    "طفح جلدي": {"spec": "جلدية", "emergency": False},
+    "ألم مفاصل": {"spec": "مفاصل وعظام", "emergency": False}
 }
-SYMPTOMS = sorted(list(set([s for p in DISEASE_PROFILES.values() for s in p.keys()])))
 
 DOCTORS = [
-    {"name": "د. سامر الحديثي", "spec": "طب عام", "lat": 33.3128, "lon": 44.3615},
-    {"name": "د. زينة القيسي", "spec": "جلدية", "lat": 33.3100, "lon": 44.3790},
-    {"name": "د. عمر العبيدي", "spec": "باطنية", "lat": 33.3260, "lon": 44.3650}
+    {"name": "د. سامر (طوارئ الكندي)", "spec": "قلبية", "lat": 33.3474, "lon": 44.4101},
+    {"name": "د. زينة (عيادة النجاة)", "spec": "باطنية", "lat": 33.3100, "lon": 44.3790},
+    {"name": "د. عمر (مستشفى العالمي)", "spec": "جهاز تنفسي", "lat": 33.3623, "lon": 44.4023}
 ]
 
-def softmax(x):
-    exps = [math.exp(v) for v in x]; s = sum(exps) or 1.0
-    return [e/s for e in exps]
+# --- 3. إدارة الجلسة (لحفظ النتائج) ---
+if "diagnosis_result" not in st.session_state: st.session_state.diagnosis_result = None
+if "auth" not in st.session_state: st.session_state.auth = True # مؤقت للتجربة
 
-# --- 3. إدارة الجلسة (بدلاً من الخزن الدائم) ---
-if "auth" not in st.session_state: st.session_state.auth = False
-if "temp_users" not in st.session_state: st.session_state.temp_users = {}
-if "page" not in st.session_state: st.session_state.page = "login"
+st.markdown("<h1 style='text-align:center; color:#71B280;'>AI Doctor Pro</h1>", unsafe_allow_html=True)
 
-st.markdown('<h1 class="main-header">AI Doctor</h1>', unsafe_allow_html=True)
-
-# --- 4. واجهات الدخول والإنشاء ---
-if not st.session_state.auth:
-    _, col, _ = st.columns([1, 1.8, 1])
+# واجهة التشخيص
+if st.session_state.auth:
+    _, col, _ = st.columns([1, 3, 1])
     with col:
         st.markdown('<div class="portal-box">', unsafe_allow_html=True)
+        st.subheader("📋 تشخيص الحالة وتحديد الموعد")
         
-        if st.session_state.page == "login":
-            st.markdown("<h3 style='text-align:center;'>تسجيل الدخول</h3>", unsafe_allow_html=True)
-            u = st.text_input("اسم المستخدم")
-            p = st.text_input("كلمة المرور", type="password")
-            st.write("")
-            c1, c2 = st.columns(2)
-            with c1:
-                if st.button("دخول"):
-                    if u in st.session_state.temp_users and st.session_state.temp_users[u] == p:
-                        st.session_state.auth = True; st.session_state.user = u; st.rerun()
-                    else: st.error("المستخدم غير موجود أو كلمة المرور خطأ")
-            with c2:
-                if st.button("حساب جديد"):
-                    st.session_state.page = "signup"; st.rerun()
+        selected_symptoms = st.multiselect("اختر الأعراض التي تشعر بها:", list(DISEASE_PROFILES.keys()))
+        
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
+            if st.button("تحليل الحالة 🔍"):
+                if selected_symptoms:
+                    # منطق تحديد الحالة والطوارئ
+                    is_emergency = any([DISEASE_PROFILES[s]["emergency"] for s in selected_symptoms])
+                    specs = list(set([DISEASE_PROFILES[s]["spec"] for s in selected_symptoms]))
+                    
+                    # حفظ النتيجة في الجلسة لكي لا تختفي
+                    st.session_state.diagnosis_result = {
+                        "emergency": is_emergency,
+                        "specs": specs,
+                        "time": datetime.now().strftime("%H:%M")
+                    }
+                else:
+                    st.warning("يرجى اختيار عرض واحد على الأقل")
+        
+        with col_btn2:
+            if st.button("مسح النتائج 🗑️"):
+                st.session_state.diagnosis_result = None
+                st.rerun()
 
-        elif st.session_state.page == "signup":
-            st.markdown("<h3 style='text-align:center;'>إنشاء حساب جديد</h3>", unsafe_allow_html=True)
-            nu = st.text_input("اسم المستخدم الجديد")
-            np = st.text_input("كلمة المرور الجديدة", type="password")
-            st.write("")
-            sc1, sc2 = st.columns(2)
-            with sc1:
-                if st.button("تأكيد"):
-                    if nu and np:
-                        st.session_state.temp_users[nu] = np
-                        st.success("تم الإنشاء بنجاح! جاري التحويل...")
-                        time.sleep(1.2)
-                        st.session_state.page = "login"; st.rerun()
-                    else: st.warning("املأ الحقول")
-            with sc2:
-                if st.button("رجوع"):
-                    st.session_state.page = "login"; st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-# --- 5. واجهة التشخيص الذكي ---
-else:
-    with st.sidebar:
-        st.write(f"أهلاً {st.session_state.user}")
-        if st.button("تسجيل خروج"):
-            st.session_state.auth = False; st.rerun()
-    
-    st.markdown('<div class="portal-box" style="max-width:850px;">', unsafe_allow_html=True)
-    st.subheader("الاستشارة الطبية الذكية")
-    
-    selected = st.multiselect("اختر الأعراض التي تشعر بها:", SYMPTOMS)
-    
-    if st.button("بدء الفحص 🔍"):
-        if selected:
-            scores = []
-            diseases = list(DISEASE_PROFILES.keys())
-            for d in diseases:
-                score = sum([DISEASE_PROFILES[d].get(s, 0) for s in selected])
-                scores.append(score)
-            probs = softmax(scores)
-            idx = max(range(len(probs)), key=lambda i: probs[i])
+        # --- عرض النتائج (إذا كانت موجودة في الجلسة) ---
+        if st.session_state.diagnosis_result:
+            res = st.session_state.diagnosis_result
+            st.write("---")
             
-            st.markdown(f"### التشخيص المبدئي: *{diseases[idx]}*")
-            st.write(f"نسبة الاحتمالية: {probs[idx]*100:.1f}%")
-            
-            # رصد الموقع
-            loc = get_geolocation()
-            if loc:
-                lat, lon = loc['coords']['latitude'], loc['coords']['longitude']
-                st.write("---")
-                st.subheader("الأطباء المتاحون في منطقتك:")
-                for d in DOCTORS:
-                    dist = math.sqrt((lat-d['lat'])*2 + (lon-d['lon'])*2)*111
-                    st.markdown(f"""<div class="doc-card">
-                        <b>{d['name']}</b> | {d['spec']}<br>يبعد: {dist:.1f} كم
-                    </div>""", unsafe_allow_html=True)
+            if res["emergency"]:
+                st.markdown('<div class="emergency-box">⚠️ <b>حالة طوارئ!</b> يرجى التوجه لأقرب مستشفى فوراً</div>', unsafe_allow_html=True)
             else:
-                st.warning("يرجى تفعيل الـ GPS لإظهار المسافات")
-        else: st.warning("اختر عرضاً واحداً على الأقل")
-    st.markdown('</div>', unsafe_allow_html=True)
+                st.success(f"✅ الحالة مستقرة. الاختصاص المطلوب: {', '.join(res['specs'])}")
+
+            # تحديد الموقع وعرض الأطباء
+            st.write("📍 *الأطباء والاختصاصات المتاحة حالياً:*")
+            loc = get_geolocation()
+            
+            for doc in DOCTORS:
+                # فلترة الأطباء حسب الاختصاص المطلوب
+                if any(s in doc["spec"] for s in res["specs"]) or res["emergency"]:
+                    dist_str = ""
+                    if loc:
+                        dist = math.sqrt((loc['coords']['latitude']-doc['lat'])*2 + (loc['coords']['longitude']-doc['lon'])*2)*111
+                        dist_str = f" | يبعد: {dist:.1f} كم"
+                    
+                    st.markdown(f"""
+                    <div class="doc-card">
+                        <b>{doc['name']}</b> - اختصاص {doc['spec']} {dist_str}<br>
+                        <small>أقرب موعد متاح: اليوم {res['time']}</small>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    if st.button(f"حجز موعد عند {doc['name']}", key=doc['name']):
+                        st.balloons()
+                        st.success(f"تم حجز موعدك بنجاح عند {doc['name']}")
+
+        st.markdown('</div>', unsafe_allow_html=True)

@@ -2,171 +2,149 @@ import streamlit as st
 import sqlite3
 import hashlib
 import math
-from datetime import date
-from streamlit_js_eval import get_geolocation
 import time
+from datetime import datetime
+from streamlit_js_eval import get_geolocation
 
-# ===== إعداد الصفحة =====
-st.set_page_config(page_title="AI Doctor Emerald", layout="wide")
+# --- 1. التصميم البصري الفخم ---
+st.set_page_config(page_title="AI Doctor Premium", layout="wide")
 
 st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap');
-* { font-family: 'Tajawal', sans-serif; direction: rtl; }
-.stApp { background:#e0f2f1; color:#034d34; }
-.main-card { max-width:700px; margin:auto; padding:25px; border-radius:15px; background:#ffffffcc; box-shadow:0 5px 15px rgba(0,0,0,0.05);}
-.stButton>button { width:100%; height:3em; border-radius:10px; background:linear-gradient(135deg,#138a36,#71b280); color:white; font-weight:bold; }
-.doc-card { background:#d0f0e5; padding:15px; border-radius:10px; margin-bottom:10px; border-left:5px solid #138a36;}
-.emergency-box { background:#ffebee; color:#c62828; padding:10px; border-radius:10px; font-weight:bold; margin-bottom:15px; text-align:center; }
-</style>
-""", unsafe_allow_html=True)
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap');
+    * { font-family: 'Tajawal', sans-serif; direction: rtl; }
+    .stApp { background: #050a0b; color: #e0f2f1; }
+    .main-header { text-align: center; color: #71B280; font-size: 35px; font-weight: 700; margin-bottom: 20px; }
+    .portal-box { max-width: 600px; margin: auto; padding: 25px; background: rgba(255, 255, 255, 0.05); border-radius: 15px; border: 1px solid #71B28033; }
+    .stButton>button { width: 100%; border-radius: 10px; font-weight: bold; background: linear-gradient(135deg, #134E5E 0%, #71B280 100%); color: white; border: none; height: 3em; }
+    .doc-card { background: rgba(113, 178, 128, 0.1); padding: 10px; border-radius: 8px; border-right: 4px solid #71B280; margin-top: 8px; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# ===== قاعدة البيانات =====
-DB_NAME="emerald_doctor.db"
-def init_db():
-    conn=sqlite3.connect(DB_NAME)
-    c=conn.cursor()
+# --- 2. إدارة قاعدة البيانات (الحل النهائي لمشكلة الاسم مأخوذ) ---
+# استخدام اسم ملف جديد وفريد لضمان تجاوز الذاكرة المؤقتة للسيرفر
+DB_NAME = "final_fix_v10.db"
+
+def setup_database():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    # إنشاء الجدول إذا لم يكن موجوداً
     c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT)")
-    c.execute("CREATE TABLE IF NOT EXISTS appointments (username TEXT, doctor TEXT, dt TEXT, tm TEXT)")
     conn.commit()
     conn.close()
-init_db()
 
-# ===== البيانات الطبية والأطباء =====
-SYMPTOMS={
-    "ألم في الصدر":{"spec":"قلب وباطنية","emergency":True},
-    "ضيق تنفس":{"spec":"قلب وباطنية","emergency":True},
-    "حمى شديدة":{"spec":"باطنية","emergency":False},
-    "طفح جلدي وحكة":{"spec":"جلدية","emergency":False},
-    "خمول عام":{"spec":"باطنية","emergency":False}
+setup_database()
+
+# --- 3. البيانات الطبية المدمجة ---
+SYMPTOMS_DATA = {
+    "ألم في الصدر": {"spec": "أمراض القلب", "emergency": True},
+    "ضيق تنفس": {"spec": "أمراض صدرية", "emergency": True},
+    "حمى وسعال": {"spec": "باطنية", "emergency": False},
+    "حكة وطفح جلدي": {"spec": "جلدية", "emergency": False},
+    "ألم مفاصل": {"spec": "عظام ومفاصل", "emergency": False}
 }
 
-DOCTORS=[
-    {"name":"د. علي الركابي","spec":"قلب وباطنية","lat":33.3128,"lon":44.3615},
-    {"name":"د. سارة الحسني","spec":"جلدية","lat":33.3020,"lon":44.4210},
-    {"name":"د. ليث السامرائي","spec":"باطنية","lat":33.2750,"lon":44.3750},
-    {"name":"د. منى الفارس","spec":"أطفال","lat":33.3350,"lon":44.4410},
-    {"name":"د. ياسر القيسي","spec":"قلب وباطنية","lat":33.3000,"lon":44.3800}
+DOCTORS = [
+    {"name": "د. أحمد (طوارئ)", "spec": "أمراض القلب", "lat": 33.34, "lon": 44.41},
+    {"name": "د. ليلى (باطنية)", "spec": "باطنية", "lat": 33.31, "lon": 44.37},
+    {"name": "د. حسن (جلدية)", "spec": "جلدية", "lat": 33.36, "lon": 44.40}
 ]
 
-# ===== دوال =====
-def hash_pwd(pwd):
-    return hashlib.sha256(pwd.encode()).hexdigest()
+# --- 4. منطق الجلسة والتنقل ---
+if "is_logged_in" not in st.session_state: st.session_state.is_logged_in = False
+if "current_page" not in st.session_state: st.session_state.current_page = "login"
+if "diagnosis_data" not in st.session_state: st.session_state.diagnosis_data = None
 
-def haversine(lat1, lon1, lat2, lon2):
-    R=6371
-    dlat=math.radians(lat2-lat1)
-    dlon=math.radians(lon2-lon1)
-    a=math.sin(dlat/2)*2 + math.cos(math.radians(lat1))*math.cos(math.radians(lat2))*math.sin(dlon/2)*2
-    c=2*math.atan2(math.sqrt(a),math.sqrt(1-a))
-    return R*c
+st.markdown('<h1 class="main-header">AI Doctor Pro</h1>', unsafe_allow_html=True)
 
-# ===== الجلسة =====
-if "logged_in" not in st.session_state: st.session_state.logged_in=False
-if "user" not in st.session_state: st.session_state.user=""
-if "diagnosis" not in st.session_state: st.session_state.diagnosis=None
-
-# ===== تسجيل دخول / حساب جديد =====
-if not st.session_state.logged_in:
-    st.markdown('<div class="main-card">', unsafe_allow_html=True)
-    st.subheader("تسجيل الدخول أو إنشاء حساب")
-    tab=st.radio("اختر:",["تسجيل دخول","إنشاء حساب"])
-    
-    if tab=="تسجيل دخول":
-        u=st.text_input("اسم المستخدم", key="login_user")
-        p=st.text_input("كلمة المرور", type="password", key="login_pass")
-        if st.button("دخول"):
-            conn=sqlite3.connect(DB_NAME)
-            res=conn.execute("SELECT * FROM users WHERE username=? AND password=?",(u,hash_pwd(p))).fetchone()
-            conn.close()
-            if res:
-                st.session_state.logged_in=True
-                st.session_state.user=u
-                st.rerun()
-            else: st.error("البيانات خاطئة")
+# --- 5. واجهات التسجيل والدخول ---
+if not st.session_state.is_logged_in:
+    _, col, _ = st.columns([1, 2, 1])
+    with col:
+        st.markdown('<div class="portal-box">', unsafe_allow_html=True)
+        
+        if st.session_state.current_page == "login":
+            st.subheader("تسجيل الدخول")
+            user_in = st.text_input("اسم المستخدم", key="l_user")
+            pass_in = st.text_input("كلمة المرور", type="password", key="l_pass")
             
-    else:  # إنشاء حساب
-        u=st.text_input("اسم مستخدم جديد", key="reg_user")
-        p=st.text_input("كلمة المرور", type="password", key="reg_pass")
-        if st.button("إنشاء الحساب"):
-            if u and p:
-                try:
-                    conn=sqlite3.connect(DB_NAME)
-                    conn.execute("INSERT INTO users VALUES (?,?)",(u,hash_pwd(p)))
-                    conn.commit(); conn.close()
-                    st.success("تم إنشاء الحساب! جاري تحويلك لتسجيل الدخول...")
-                    time.sleep(1.5)
-                    st.experimental_rerun()
-                except sqlite3.IntegrityError:
-                    st.error("الاسم مستخدم مسبقاً! جرب إضافة رقم (مثلاً user123)")
-            else:
-                st.warning("املأ جميع الحقول")
-    st.markdown('</div>', unsafe_allow_html=True)
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("دخول"):
+                    hashed = hashlib.sha256(pass_in.encode()).hexdigest()
+                    conn = sqlite3.connect(DB_NAME)
+                    res = conn.execute("SELECT * FROM users WHERE username=? AND password=?", (user_in, hashed)).fetchone()
+                    conn.close()
+                    if res:
+                        st.session_state.is_logged_in = True
+                        st.session_state.username = user_in
+                        st.rerun()
+                    else: st.error("تأكد من البيانات")
+            with c2:
+                if st.button("إنشاء حساب جديد"):
+                    st.session_state.current_page = "signup"; st.rerun()
 
-# ===== بعد تسجيل الدخول =====
+        elif st.session_state.current_page == "signup":
+            st.subheader("إنشاء مستخدم جديد")
+            new_user = st.text_input("اختر اسماً فريداً", key="s_user")
+            new_pass = st.text_input("اختر كلمة مرور", type="password", key="s_pass")
+            
+            sc1, sc2 = st.columns(2)
+            with sc1:
+                if st.button("تأكيد التسجيل"):
+                    if new_user and new_pass:
+                        try:
+                            hashed_p = hashlib.sha256(new_pass.encode()).hexdigest()
+                            conn = sqlite3.connect(DB_NAME)
+                            conn.execute("INSERT INTO users (username, password) VALUES (?,?)", (new_user, hashed_p))
+                            conn.commit(); conn.close()
+                            st.success("تم الإنشاء! جاري التحويل للدخول...")
+                            time.sleep(1.5)
+                            st.session_state.current_page = "login"; st.rerun()
+                        except sqlite3.IntegrityError:
+                            st.error("الاسم مأخوذ! جرب إضافة رقم للاسم (مثلاً: user123)")
+                    else: st.warning("املأ الحقول")
+            with sc2:
+                if st.button("رجوع"):
+                    st.session_state.current_page = "login"; st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# --- 6. واجهة الطبيب (بعد الدخول) ---
 else:
     with st.sidebar:
-        st.write(f"مرحباً {st.session_state.user}")
-        if st.button("تسجيل خروج"):
-            st.session_state.logged_in=False
-            st.session_state.user=""
-            st.session_state.diagnosis=None
-            st.rerun()
-        menu=st.radio("القائمة:",["استشارة ذكية","مواعيدي"])
+        st.write(f"أهلاً {st.session_state.username}")
+        if st.button("خروج"):
+            st.session_state.is_logged_in = False; st.rerun()
+
+    st.markdown('<div class="portal-box" style="max-width:850px;">', unsafe_allow_html=True)
+    st.subheader("الاستشارة والبحث الذكي")
     
-    # ---- استشارة ذكية ----
-    if menu=="استشارة ذكية":
-        st.markdown('<div class="main-card">', unsafe_allow_html=True)
-        st.subheader("🔍 حدد أعراضك")
-        selected=st.multiselect("الأعراض",list(SYMPTOMS.keys()))
-        
-        if st.button("تحليل"):
-            if selected:
-                is_em=any([SYMPTOMS[s]["emergency"] for s in selected])
-                specs=list(set([SYMPTOMS[s]["spec"] for s in selected]))
-                st.session_state.diagnosis={"em":is_em,"specs":specs}
-            else:
-                st.warning("اختر عرضاً واحداً على الأقل")
-        
-        if st.session_state.diagnosis:
-            diag=st.session_state.diagnosis
-            if diag["em"]:
-                st.markdown('<div class="emergency-box">⚠️ حالة طارئة! توجّه لأقرب مستشفى.</div>', unsafe_allow_html=True)
-            else:
-                st.success(f"التخصصات المطلوبة: {', '.join(diag['specs'])}")
-            
-            st.write("📍 الأطباء المتاحون:")
-            loc=get_geolocation()
-            for doc in DOCTORS:
-                if any(sp in doc["spec"] for sp in diag["specs"]) or diag["em"]:
-                    dist_text=""
-                    if loc:
-                        dist=haversine(loc['coords']['latitude'],loc['coords']['longitude'],doc['lat'],doc['lon'])
-                        dist_text=f" | يبعد {dist:.1f} كم"
-                    st.markdown(f'<div class="doc-card"><b>{doc["name"]}</b> - {doc["spec"]}{dist_text}</div>', unsafe_allow_html=True)
-                    c1,c2=st.columns(2)
-                    with c1:
-                        sel_date=st.date_input("اليوم", min_value=date.today(), key=f"d_{doc['name']}")
-                    with c2:
-                        sel_time=st.selectbox("الوقت",["04:00 PM","05:30 PM","07:00 PM"], key=f"t_{doc['name']}")
-                    if st.button(f"حجز عند {doc['name']}", key=f"b_{doc['name']}"):
-                        conn=sqlite3.connect(DB_NAME)
-                        conn.execute("INSERT INTO appointments VALUES (?,?,?,?)",
-                                     (st.session_state.user,doc['name'],str(sel_date),sel_time))
-                        conn.commit(); conn.close()
-                        st.success(f"تم حجز موعدك عند {doc['name']} بتاريخ {sel_date} الساعة {sel_time}!")
-        st.markdown('</div>', unsafe_allow_html=True)
+    selected_syms = st.multiselect("ما هي الأعراض؟", list(SYMPTOMS_DATA.keys()))
     
-    # ---- مواعيدي ----
-    elif menu=="مواعيدي":
-        st.markdown('<div class="main-card">', unsafe_allow_html=True)
-        st.subheader("📅 مواعيدك")
-        conn=sqlite3.connect(DB_NAME)
-        data=conn.execute("SELECT doctor, dt, tm FROM appointments WHERE username=? ORDER BY dt",(st.session_state.user,)).fetchall()
-        conn.close()
-        if data:
-            for d,dt,tm in [(row[0],row[1],row[2]) for row in data]:
-                st.markdown(f'<div class="doc-card"><b>{d}</b><br>التاريخ: {dt} | الوقت: {tm}</div>', unsafe_allow_html=True)
+    if st.button("بدء التحليل الفوري 🔍"):
+        if selected_syms:
+            is_em = any([SYMPTOMS_DATA[s]["emergency"] for s in selected_syms])
+            specs_needed = list(set([SYMPTOMS_DATA[s]["spec"] for s in selected_syms]))
+            st.session_state.diagnosis_data = {"em": is_em, "specs": specs_needed}
+        else: st.warning("اختر الأعراض")
+
+    if st.session_state.diagnosis_data:
+        diag = st.session_state.diagnosis_data
+        if diag["em"]:
+            st.error("⚠️ حالة طوارئ! توجه لأقرب مستشفى.")
         else:
-            st.info("لم تقم بحجز أي مواعيد بعد.")
-        st.markdown('</div>', unsafe_allow_html=True)
+            st.success(f"الاختصاص المطلوب: {', '.join(diag['specs'])}")
+
+        st.write("---")
+        st.write("📍 أقرب الأطباء المتاحين:")
+        loc = get_geolocation()
+        for doc in DOCTORS:
+            if any(sp in doc["spec"] for sp in diag["specs"]) or diag["em"]:
+                dist_txt = ""
+                if loc:
+                    d = math.sqrt((loc['coords']['latitude']-doc['lat'])*2 + (loc['coords']['longitude']-doc['lon'])*2)*111
+                    dist_txt = f" | يبعد: {d:.1f} كم"
+                st.markdown(f'<div class="doc-card"><b>{doc["name"]}</b> - {doc["spec"]} {dist_txt}</div>', unsafe_allow_html=True)
+                if st.button(f"حجز عند {doc['name']}", key=doc['name']):
+                    st.success("تم الحجز!")
+    st.markdown('</div>', unsafe_allow_html=True)

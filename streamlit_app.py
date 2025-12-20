@@ -14,7 +14,7 @@ st.markdown(r'''
     * { font-family: 'Tajawal', sans-serif; direction: rtl; }
     .stApp { background-color: #050505; color: #e0e0e0; }
     .classic-logo { font-family: 'Playfair Display', serif; color: #40E0D0; text-align: center; font-size: 50px; margin-bottom: 10px; }
-    .auth-box { max-width: 400px; margin: auto; padding: 25px; background-color: #0d0d0d; border-radius: 15px; border: 1px solid rgba(64, 224, 208, 0.2); }
+    .auth-box { max-width: 400px; margin: auto; padding: 25px; background-color: #0d0d0d; border-radius: 15px; border: 1px solid rgba(64, 224, 208, 0.2); text-align:right; }
     .doc-card { background-color: #0d0d0d; padding: 20px; border-radius: 15px; border-right: 6px solid #40E0D0; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05); }
     .slot-taken { background-color: #1a1a1a; color: #555; padding: 8px; border-radius: 5px; text-align: center; text-decoration: line-through; font-size: 12px; border: 1px solid #333; }
     .warning-box { background-color: #332b00; color: #ffcc00; padding: 10px; border-radius: 8px; font-size: 12px; border: 1px solid #ffcc00; margin-top: 10px; text-align: center; }

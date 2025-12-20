@@ -14,12 +14,11 @@ st.markdown(r'''
     * { font-family: 'Tajawal', sans-serif; direction: rtl; }
     .stApp { background-color: #050505; color: #e0e0e0; }
     .classic-logo { font-family: 'Playfair Display', serif; color: #40E0D0; text-align: center; font-size: 50px; margin-bottom: 10px; }
-    .auth-box { max-width: 400px; margin: auto; padding: 25px; background-color: #0d0d0d; border-radius: 15px; border: 1px solid rgba(64, 224, 208, 0.2); text-align:right; }
+    .auth-box { max-width: 400px; margin: auto; padding: 25px; background-color: #0d0d0d; border-radius: 15px; border: 1px solid rgba(64, 224, 208, 0.2); text-align: right; }
     .doc-card { background-color: #0d0d0d; padding: 20px; border-radius: 15px; border-right: 6px solid #40E0D0; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05); }
     .slot-taken { background-color: #1a1a1a; color: #555; padding: 8px; border-radius: 5px; text-align: center; text-decoration: line-through; font-size: 12px; border: 1px solid #333; }
     .warning-box { background-color: #332b00; color: #ffcc00; padding: 10px; border-radius: 8px; font-size: 12px; border: 1px solid #ffcc00; margin-top: 10px; text-align: center; }
     
-    /* إرجاع الزر الفيروزي المتدرج */
     .stButton>button { 
         background: linear-gradient(135deg, #1d4e4a 0%, #40E0D0 100%) !important; 
         color: #000000 !important; 
@@ -33,10 +32,11 @@ st.markdown(r'''
         transform: scale(1.02);
         box-shadow: 0px 0px 15px rgba(64, 224, 208, 0.4);
     }
+    input { text-align: right; direction: rtl; }
     </style>
     ''', unsafe_allow_html=True)
 
-# --- 2. محرك البيانات والتشخيصات ---
+# --- 2. محرك البيانات ---
 def init_db():
     conn = sqlite3.connect("al_doctor_final.db")
     conn.execute('CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT)')
@@ -93,8 +93,7 @@ st.markdown('<div class="classic-logo">Al Doctor</div>', unsafe_allow_html=True)
 
 if st.session_state.view in ["login", "signup"]:
     st.markdown('<div class="auth-box">', unsafe_allow_html=True)
-header_text = "تسجيل الدخول" if st.session_state.view == "login" else "إنشاء حساب جديد"
-        st.markdown(f'<div style="text-align: right; font-size: 24px; font-weight: bold; color: #40E0D0; margin-bottom: 20px;">{header_text}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="text-align:right; font-size:24px; font-weight:bold; color:#40E0D0; margin-bottom:20px;">{"تسجيل الدخول" if st.session_state.view == "login" else "إنشاء حساب جديد"}</div>', unsafe_allow_html=True)
     
     u = st.text_input("اسم المستخدم", key="u_field")
     p = st.text_input("كلمة المرور", type="password", key="p_field")
@@ -130,8 +129,7 @@ elif st.session_state.view == "app":
         
         st.write("---")
         st.success(f"🤖 تحليل الذكاء الاصطناعي: {info['diag']} (دقة التوقع: {info['acc']})")
-        st.markdown(f'<div class="warning-box">⚠️ تنبيه: هذا التشخيص استرشادي ناتج عن ذكاء اصطناعي ولا يعتبر استشارة طبية معتمدة. يرجى زيارة الطبيب المختص فوراً.</div>', unsafe_allow_html=True)
-        
+        st.markdown(f'<div class="warning-box">⚠️ تنبيه: هذا التشخيص استرشادي ناتج عن ذكاء اصطناعي ولا يعتبر استشارة طبية معتمدة.</div>', unsafe_allow_html=True)
         st.markdown(f'<div style="text-align: right; font-size: 20px; font-weight: bold; margin-top:15px;">التخصص المطلوب: {info["spec"]}</div>', unsafe_allow_html=True)
         
         results = []
@@ -153,7 +151,6 @@ elif st.session_state.view == "app":
             ''', unsafe_allow_html=True)
             
             st.markdown('<div style="text-align: right; font-weight: bold; margin-top: 20px; color: #ffffff;">جدول مواعيد اليوم:</div>', unsafe_allow_html=True)
-            
             t_cols = st.columns(5)
             random.seed(d['name'])
             slots = ["3:00", "3:30", "4:00", "4:30", "5:00"]
@@ -167,5 +164,4 @@ elif st.session_state.view == "app":
                         if st.button(f"{t}", key=f"{d['name']}_{t}"):
                             st.balloons()
                             st.markdown(f'<div style="color: #40E0D0; text-align: right; font-size: 13px;">تم اختيار الساعة {t}</div>', unsafe_allow_html=True)
-            
             st.markdown('</div>', unsafe_allow_html=True)

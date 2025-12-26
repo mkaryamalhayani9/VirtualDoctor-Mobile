@@ -1,10 +1,9 @@
 import streamlit as st
 import math
-import random
 import pandas as pd
 from streamlit_js_eval import get_geolocation
 
-# --- 1. الهوية البصرية والتصميم (خرائط مدمجة وألوان متناسقة) ---
+# --- 1. التصميم البصري (AI Doctor 🩺) ---
 st.set_page_config(page_title="AI Doctor 🩺", layout="wide")
 
 st.markdown(r'''
@@ -12,137 +11,105 @@ st.markdown(r'''
     @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap');
     * { font-family: 'Tajawal', sans-serif; direction: rtl; }
     .stApp { background-color: #050505; color: #e0e0e0; }
-    .classic-logo { color: #40E0D0; text-align: center; font-size: 35px; font-weight: bold; margin-bottom: 20px; }
-    .doc-card { 
-        background-color: #0d0d0d; padding: 15px; border-radius: 15px; 
-        border-right: 6px solid #40E0D0; margin-bottom: 20px; 
-        border: 1px solid rgba(255,255,255,0.05); 
-    }
-    [data-testid="stMap"] { height: 200px !important; border-radius: 12px; margin: 10px 0; }
-    .stars { color: #FFD700; font-size: 16px; margin-bottom: 5px; }
-    .distance-tag { 
-        background: rgba(64, 224, 208, 0.1); color: #40E0D0; 
-        padding: 4px 10px; border-radius: 20px; font-size: 13px; font-weight: bold; 
-    }
-    .stButton>button { 
-        background: linear-gradient(135deg, #1d4e4a 0%, #40E0D0 100%) !important; 
-        color: #000 !important; font-weight: bold; border-radius: 8px; width: 100%; height: 40px; 
-    }
-    .slot-taken { 
-        background-color: #1a1a1a; color: #444; padding: 8px; border-radius: 5px; 
-        text-align: center; text-decoration: line-through; border: 1px solid #222; font-size: 11px; 
-    }
-    .success-ticket { 
-        background: linear-gradient(135deg, #1d4e4a 0%, #0d0d0d 100%); 
-        border: 2px dashed #40E0D0; padding: 25px; border-radius: 20px; text-align: center; 
-    }
+    .classic-logo { color: #40E0D0; text-align: center; font-size: 45px; font-weight: bold; margin-bottom: 25px; }
+    .emergency-alert { background-color: #4a0000; color: #ff4b4b; padding: 20px; border-radius: 12px; border: 2px solid #ff4b4b; text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 20px; }
+    .doc-card { background-color: #0d0d0d; padding: 20px; border-radius: 15px; border-right: 6px solid #40E0D0; margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.05); }
+    .stars { color: #FFD700; font-size: 20px; margin-bottom: 5px; display: block; }
+    .distance-tag { background: rgba(64, 224, 208, 0.1); color: #40E0D0; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: bold; }
+    .stButton>button { background: linear-gradient(135deg, #1d4e4a 0%, #40E0D0 100%) !important; color: #000 !important; font-weight: bold; border-radius: 8px; width: 100%; height: 45px; }
     </style>
     ''', unsafe_allow_html=True)
 
-# --- 2. قاعدة بيانات الأطباء (تعدد الاختصاصات لضمان القرب) ---
+# --- 2. قاعدة البيانات الكاملة (24 عرض + الأطباء) ---
+SYMPTOMS_DB = {
+    "ألم صدر حاد": {"spec": "قلبية", "urgency": 10, "diag": "اشتباه ذبحة صدرية - طوارئ"},
+    "ثقل كلام وتدلي وجه": {"spec": "جملة عصبية", "urgency": 10, "diag": "اشتباه سكتة دماغية - طوارئ"},
+    "ضيق تنفس وازرقاق": {"spec": "صدرية", "urgency": 10, "diag": "فشل تنفسي حاد - طوارئ"},
+    "ألم أسفل البطن يمين": {"spec": "جراحة عامة", "urgency": 8, "diag": "التهاب زائدة دودية"},
+    "فقدان رؤية مفاجئ": {"spec": "عيون", "urgency": 9, "diag": "انفصال شبكية - طوارئ عيون"},
+    "تشنج رقبة وحرارة": {"spec": "باطنية", "urgency": 10, "diag": "اشتباه التهاب سحايا"},
+    "صداع نصفي شديد": {"spec": "جملة عصبية", "urgency": 5, "diag": "نوبة شقيقة"},
+    "عطش وتبول متكرر": {"spec": "غدد صماء", "urgency": 5, "diag": "اشتباه مرض السكري"},
+    "ألم مفاجئ بالخاصرة": {"spec": "مسالك بولية", "urgency": 8, "diag": "مغص كلوي حاد"},
+    "طفح جلدي قشري": {"spec": "جلدية", "urgency": 3, "diag": "حالة جلدية (صدفية/اكزيما)"},
+    "طنين ودوار": {"spec": "أذن وحنجرة", "urgency": 5, "diag": "دوار الدهليز المتوسطة"},
+    "نزيف لثة": {"spec": "أسنان", "urgency": 4, "diag": "التهابات لثة حادة"},
+    "خمول مستمر": {"spec": "غدد صماء", "urgency": 4, "diag": "كسل الغدة الدرقية"},
+    "ألم مفاصل صباحي": {"spec": "مفاصل", "urgency": 5, "diag": "روماتويد أو التهاب مفاصل"},
+    "حرقة خلف القص": {"spec": "جهاز هضمي", "urgency": 4, "diag": "ارتجاع مريئي حاد"},
+    "رعشة باليدين": {"spec": "جملة عصبية", "urgency": 6, "diag": "اضطرابات حركية عصبية"},
+    "سعال مستمر": {"spec": "صدرية", "urgency": 5, "diag": "تحسس قصبي أو ربو"},
+    "تورم ساق مؤلم": {"spec": "أوعية دموية", "urgency": 8, "diag": "اشتباه جلطة وريدية (DVT)"},
+    "حزن وفقدان أمل": {"spec": "طبيب نفسي", "urgency": 5, "diag": "أعراض اكتئاب"},
+    "تأخر نطق الطفل": {"spec": "أطفال", "urgency": 4, "diag": "اضطرابات نمو وتطور"},
+    "نزيف أنف حاد": {"spec": "أذن وحنجرة", "urgency": 7, "diag": "رعاف شديد"},
+    "ألم حاد بالتبول": {"spec": "مسالك بولية", "urgency": 5, "diag": "التهاب المجاري البولية"},
+    "اصفرار العين": {"spec": "باطنية/كبد", "urgency": 7, "diag": "اشتباه التهاب كبد فيروسي"},
+    "كسر عظمي": {"spec": "عظام", "urgency": 9, "diag": "كسر أو رض حاد"}
+}
+
 DOCTORS_DB = [
     {"name": "د. علي الركابي", "title": "استشاري قلبية", "spec": "قلبية", "area": "الحارثية", "lat": 33.322, "lon": 44.358, "stars": 5},
     {"name": "د. محمد الزيدي", "title": "أخصائي قلب وقسطرة", "spec": "قلبية", "area": "المنصور", "lat": 33.324, "lon": 44.345, "stars": 5},
-    {"name": "د. سامر الحديثي", "title": "جراحة قلب", "spec": "قلبية", "area": "الكرادة", "lat": 33.315, "lon": 44.420, "stars": 4},
-    {"name": "د. ياسمين طه", "title": "أخصائية عيون", "spec": "عيون", "area": "الجادرية", "lat": 33.280, "lon": 44.390, "stars": 5},
+    {"name": "د. عمر الجبوري", "title": "أخصائي جملة عصبية", "spec": "جملة عصبية", "area": "المنصور", "lat": 33.325, "lon": 44.348, "stars": 5},
+    {"name": "د. حيدر القزويني", "title": "استشاري جراحة دماغ", "spec": "جملة عصبية", "area": "الحارثية", "lat": 33.321, "lon": 44.357, "stars": 5},
+    {"name": "د. ياسمين طه", "title": "أخصائية جراحة عيون", "spec": "عيون", "area": "الجادرية", "lat": 33.280, "lon": 44.390, "stars": 5},
     {"name": "د. لؤي الخفاجي", "title": "استشاري ليزك", "spec": "عيون", "area": "اليرموك", "lat": 33.300, "lon": 44.330, "stars": 5},
-    {"name": "د. سارة الصراف", "title": "طب العيون العام", "spec": "عيون", "area": "الاعظمية", "lat": 33.360, "lon": 44.380, "stars": 4},
-    {"name": "د. عمر الجبوري", "title": "جملة عصبية", "spec": "جملة عصبية", "area": "المنصور", "lat": 33.325, "lon": 44.348, "stars": 5},
-    {"name": "د. حيدر القزويني", "title": "جراحة دماغ", "spec": "جملة عصبية", "area": "الحارثية", "lat": 33.321, "lon": 44.357, "stars": 5},
-    {"name": "د. مريم القيسي", "title": "استشارية مفاصل", "spec": "مفاصل", "area": "الكرادة", "lat": 33.313, "lon": 44.429, "stars": 4},
-    {"name": "د. ليث الحسيني", "title": "أخصائي صدرية", "spec": "صدرية", "area": "شارع فلسطين", "lat": 33.345, "lon": 44.430, "stars": 5},
-    {"name": "د. نور الدليمي", "title": "أمراض التنفس", "spec": "صدرية", "area": "العطيفية", "lat": 33.352, "lon": 44.368, "stars": 4}
+    {"name": "د. مريم القيسي", "title": "استشارية مفاصل وروماتيزم", "spec": "مفاصل", "area": "الكرادة", "lat": 33.313, "lon": 44.429, "stars": 5}
 ]
 
-SYMPTOMS_DB = {
-    "ألم صدر حاد": {"spec": "قلبية", "diag": "اشتباه ذبحة صدرية"},
-    "فقدان رؤية مفاجئ": {"spec": "عيون", "diag": "مشكلة في الشبكية"},
-    "ضيق تنفس": {"spec": "صدرية", "diag": "أزمة تنفسية"},
-    "ثقل كلام": {"spec": "جملة عصبية", "diag": "اشتباه سكتة"},
-    "ألم مفاصل": {"spec": "مفاصل", "diag": "التهاب مفاصل"}
-}
-
-# --- 3. المنطق التشغيلي ---
-if "view" not in st.session_state: st.session_state.view = "login"
-if "booked" not in st.session_state: st.session_state.booked = None
-
-def get_dist(u_loc, d_lat, d_lon):
-    u_lat, u_lon = 33.333, 44.400 # افتراضي لمركز بغداد
-    try:
-        if u_loc and 'coords' in u_loc:
-            u_lat = u_loc['coords'].get('latitude', u_lat)
-            u_lon = u_loc['coords'].get('longitude', u_lon)
-        return round(math.sqrt((u_lat-d_lat)*2 + (u_lon-d_lon)*2) * 111, 1)
-    except: return 5.0
-
+# --- 3. تشغيل النظام ---
 st.markdown('<div class="classic-logo">AI Doctor 🩺</div>', unsafe_allow_html=True)
 
-if st.session_state.view == "login":
-    st.markdown('<div class="auth-box">', unsafe_allow_html=True)
-    name = st.text_input("الأسم الكامل")
-    age = st.number_input("العمر", 1, 100, 25)
-    pwd = st.text_input("الباسورد", type="password")
-    if st.button("دخول للنظام"):
-        if name and pwd:
-            st.session_state.user = {"name": name, "age": age}
-            st.session_state.view = "app"; st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+u_loc = get_geolocation()
 
-elif st.session_state.view == "app":
-    u_loc = get_geolocation()
+selected_symptom = st.selectbox("بماذا تشعر؟ (اختر من قائمة الـ 24 عرضاً)", ["اختر حالتك..."] + list(SYMPTOMS_DB.keys()))
+
+if selected_symptom != "اختر حالتك...":
+    case = SYMPTOMS_DB[selected_symptom]
     
-    if st.session_state.booked:
-        b = st.session_state.booked
-        st.markdown(f'''
-            <div class="success-ticket">
-                <h2 style="color:#40E0D0;">✅ تم الحجز بنجاح</h2>
-                <p>المريض: <b>{st.session_state.user['name']}</b></p>
-                <div style="background:rgba(64,224,208,0.1); padding:15px; border-radius:10px; margin:15px 0;">
-                    <p>الطبيب: <b>{b['doc']}</b></p>
-                    <p>الموعد: <b>{b['time']}</b> | المكان: <b>{b['area']}</b></p>
-                </div>
-            </div>
-        ''', unsafe_allow_html=True)
-        if st.button("حجز جديد"): st.session_state.booked = None; st.rerun()
-        st.divider()
+    # تنبيه الطوارئ
+    if case['urgency'] >= 9:
+        st.markdown(f'<div class="emergency-alert">🚨 تنبيه طوارئ: {case["diag"]}</div>', unsafe_allow_html=True)
+    else:
+        st.success(f"🤖 التشخيص المتوقع: {case['diag']}")
 
-    selected = st.multiselect("اختر أعراضك:", list(SYMPTOMS_DB.keys()))
-    if selected:
-        info = SYMPTOMS_DB[selected[0]]
-        st.success(f"🤖 التشخيص المتوقع: {info['diag']}")
-        
-        # تصفية وفرز حسب المسافة
-        matched = [d for d in DOCTORS_DB if d['spec'] == info['spec']]
-        for d in matched: d['dist'] = get_dist(u_loc, d['lat'], d['lon'])
-        matched = sorted(matched, key=lambda x: x['dist'])
+    # البحث عن الأطباء المختصين وحساب المسافة
+    matched_docs = [d for d in DOCTORS_DB if d['spec'] == case['spec']]
+    
+    u_lat, u_lon = 33.333, 44.400 # افتراضي بغداد
+    if u_loc and 'coords' in u_loc:
+        u_lat = u_loc['coords'].get('latitude', u_lat)
+        u_lon = u_loc['coords'].get('longitude', u_lon)
+    
+    for d in matched_docs:
+        d['dist'] = round(math.sqrt((u_lat-d['lat'])*2 + (u_lon-d['lon'])*2) * 111, 1)
+    
+    # ترتيب حسب القرب
+    matched_docs = sorted(matched_docs, key=lambda x: x['dist'])
 
-        st.info(f"📍 تم العثور على {len(matched)} أطباء في تخصص {info['spec']}:")
+    st.subheader(f"📍 أطباء {case['spec']} المتاحين بالقرب منك:")
 
-        for d in matched:
-            with st.container():
-                st.markdown(f'''
-                    <div class="doc-card">
-                        <div style="display:flex; justify-content:space-between; align-items:start;">
-                            <div>
-                                <span style="color:#40E0D0; font-size:20px; font-weight:bold;">{d['name']}</span>
-                                <div class="stars">{"⭐"*d['stars']}</div>
-                                <div style="color:#888;">{d['title']} - {d['area']}</div>
-                            </div>
-                            <div class="distance-tag">📏 {d['dist']} كم</div>
+    for d in matched_docs:
+        with st.container():
+            st.markdown(f'''
+                <div class="doc-card">
+                    <div style="display:flex; justify-content:space-between;">
+                        <div>
+                            <span style="color:#40E0D0; font-size:22px; font-weight:bold;">{d['name']}</span>
+                            <div class="stars">{"⭐"*d['stars']}</div>
+                            <p style="margin:2px 0; color:#bbb;">{d['title']} - {d['area']}</p>
                         </div>
-                ''', unsafe_allow_html=True)
-                
-                # خريطة مدمجة صغيرة
+                        <div class="distance-tag">📏 {d['dist']} كم</div>
+                    </div>
+                </div>
+            ''', unsafe_allow_html=True)
+            
+            # الخريطة الاختيارية (بناءً على طلبك لتقليل الزحام)
+            show_map = st.checkbox(f"فتح خريطة الموقع لـ {d['name']} 🗺️", key=f"map_{d['name']}")
+            if show_map:
                 st.map(pd.DataFrame({'lat': [d['lat']], 'lon': [d['lon']]}), zoom=14)
-                
-                # أزرار الحجز
-                cols = st.columns(5)
-                for i, t in enumerate(["3:00", "3:30", "4:00", "4:30", "5:00"]):
-                    random.seed(d['name'] + t)
-                    if random.choice([True, False, False]):
-                        cols[i].markdown(f'<div class="slot-taken">{t}</div>', unsafe_allow_html=True)
-                    else:
-                        if cols[i].button(t, key=f"{d['name']}_{t}"):
-                            st.session_state.booked = {"doc": d['name'], "time": t, "area": d['area']}
-                            st.balloons(); st.rerun()
-                st.markdown('</div>', unsafe_allow_html=True)
+            
+            if st.button(f"تأكيد موعد الحجز عند {d['name']}", key=f"btn_{d['name']}"):
+                st.balloons()
+                st.success(f"تم الحجز بنجاح! الطبيب بانتظارك في عيادة {d['area']}.")

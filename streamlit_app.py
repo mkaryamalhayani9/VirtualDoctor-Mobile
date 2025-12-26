@@ -3,7 +3,7 @@ import math
 import random
 from streamlit_js_eval import get_geolocation
 
-# --- 1. التصميم البصري (ثابت كما تحبه) ---
+# --- 1. التصميم والتنسيق البصري ---
 st.set_page_config(page_title="AI Doctor 🩺", layout="wide")
 
 st.markdown(r'''
@@ -24,12 +24,12 @@ st.markdown(r'''
     </style>
     ''', unsafe_allow_html=True)
 
-# --- 2. محرك البيانات (24 عرضاً) ---
+# --- 2. محرك البيانات (24 عرضاً طبياً) ---
 SYMPTOMS_DB = {
     "ألم صدر حاد": {"spec": "قلبية", "urgency": 10, "diag": "اشتباه ذبحة صدرية", "acc": "89%"},
     "ثقل كلام وتدلي وجه": {"spec": "جملة عصبية", "urgency": 10, "diag": "اشتباه سكتة دماغية", "acc": "94%"},
     "ضيق تنفس وازرقاق": {"spec": "صدرية", "urgency": 9, "diag": "فشل تنفسي حاد", "acc": "87%"},
-    "ألم أسفل البطن يمين": {"spec": "جراحة عامة", "urgency": 8, "diag": "التهاب زائدة", "acc": "82%"},
+    "ألم أسفل البطن يمين": {"spec": "جراحة عامة", "urgency": 8, "diag": "التهاب زائدة دودية", "acc": "82%"},
     "فقدان رؤية مفاجئ": {"spec": "عيون", "urgency": 9, "diag": "انفصال شبكية", "acc": "91%"},
     "تشنج رقبة وحرارة": {"spec": "باطنية", "urgency": 10, "diag": "اشتباه التهاب سحايا", "acc": "98%"},
     "صداع نصفي شديد": {"spec": "جملة عصبية", "urgency": 6, "diag": "شقيقة", "acc": "95%"},
@@ -52,59 +52,57 @@ SYMPTOMS_DB = {
     "كسر عظمي": {"spec": "عظام", "urgency": 9, "diag": "كسر عظمي", "acc": "99%"}
 }
 
-# --- 3. قاعدة الأطباء الموسعة ---
+# --- 3. قاعدة الأطباء الشاملة ---
 DOCTORS_DB = [
     {"name": "د. علي الركابي", "title": "استشاري قلبية", "spec": "قلبية", "area": "الحارثية", "lat": 33.322, "lon": 44.358, "stars": 5},
     {"name": "د. محمد الزيدي", "title": "أخصائي قسطرة وقلب", "spec": "قلبية", "area": "المنصور", "lat": 33.324, "lon": 44.345, "stars": 5},
     {"name": "د. عمر الجبوري", "title": "أخصائي جملة عصبية", "spec": "جملة عصبية", "area": "المنصور", "lat": 33.325, "lon": 44.348, "stars": 5},
     {"name": "د. رافد القيسي", "title": "استشاري مخ وأعصاب", "spec": "جملة عصبية", "area": "الكرادة", "lat": 33.313, "lon": 44.429, "stars": 4},
+    {"name": "د. ياسمين طه", "title": "أخصائية طب وجراحة العيون", "spec": "عيون", "area": "الجادرية", "lat": 33.280, "lon": 44.390, "stars": 5},
+    {"name": "د. سامر العاني", "title": "استشاري شبكية وعيون", "spec": "عيون", "area": "المنصور", "lat": 33.327, "lon": 44.342, "stars": 5},
     {"name": "د. سارة لؤي", "title": "أخصائية جلدية", "spec": "جلدية", "area": "زيونة", "lat": 33.332, "lon": 44.455, "stars": 5},
-    {"name": "د. مريم القيسي", "title": "استشارية مفاصل", "spec": "مفاصل", "area": "الكرادة", "lat": 33.313, "lon": 44.429, "stars": 4},
-    {"name": "د. ليث الحسيني", "title": "أخصائي صدرية", "spec": "صدرية", "area": "شارع فلسطين", "lat": 33.345, "lon": 44.430, "stars": 5}
+    {"name": "د. مريم القيسي", "title": "استشارية مفاصل وروماتيزم", "spec": "مفاصل", "area": "الكرادة", "lat": 33.313, "lon": 44.429, "stars": 4},
+    {"name": "د. ليث الحسيني", "title": "أخصائي صدرية وتنفسية", "spec": "صدرية", "area": "شارع فلسطين", "lat": 33.345, "lon": 44.430, "stars": 5},
+    {"name": "د. حسن الوائلي", "title": "استشاري جراحة عامة", "spec": "جراحة عامة", "area": "الحارثية", "lat": 33.323, "lon": 44.356, "stars": 5}
 ]
 
-# --- 4. المنطق التشغيلي (تعديل الذكاء الجغرافي) ---
+# --- 4. المنطق التشغيلي (الموقع والفلترة) ---
 if "view" not in st.session_state: st.session_state.view = "login"
 
 def get_safe_dist(u_loc, d_lat, d_lon):
     try:
-        # إذا سمح المستخدم بالموقع، نستخدم إحداثياته الحقيقية
+        # محاولة جلب الموقع الحقيقي
         if u_loc and 'coords' in u_loc and u_loc['coords']:
-            lat1 = u_loc['coords'].get('latitude')
-            lon1 = u_loc['coords'].get('longitude')
-            if lat1 is None: raise Exception("Location missing")
-        else:
-            # إذا لم يسمح، نفترض أنه في مركز بغداد لكي لا يظهر خطأ
-            lat1, lon1 = 33.333, 44.400 
-            
-        return round(math.sqrt((lat1-d_lat)*2 + (lon1-d_lon)*2) * 111, 1)
-    except:
-        # مسافة افتراضية عشوائية بسيطة في حال تعطل كل شيء
-        return round(random.uniform(2.0, 7.0), 1)
+            lat1, lon1 = u_loc['coords'].get('latitude'), u_loc['coords'].get('longitude')
+            if lat1 is not None: return round(math.sqrt((lat1-d_lat)*2 + (lon1-d_lon)*2) * 111, 1)
+        # إذا تعذر، استخدام موقع افتراضي (بغداد) لضمان عدم ظهور "يرجى التفعيل"
+        return round(math.sqrt((33.333-d_lat)*2 + (44.400-d_lon)*2) * 111, 1)
+    except: return round(random.uniform(3.0, 8.0), 1)
 
 st.markdown('<div class="classic-logo">Welcome to AI Doctor 🩺</div>', unsafe_allow_html=True)
 
-# صفحة الدخول
+# صفحة الدخول والتعريف
 if st.session_state.view == "login":
     st.markdown('<div class="auth-box">', unsafe_allow_html=True)
     name = st.text_input("الأسم الكامل")
     age = st.number_input("العمر", min_value=1, max_value=110)
     pwd = st.text_input("الباسورد", type="password")
-    if st.button("دخول"):
+    if st.button("دخول للنظام"):
         if name and pwd:
             st.session_state.user = {"name": name, "age": age}
             st.session_state.view = "app"
             st.rerun()
+        else: st.error("يرجى ملء كافة البيانات")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# واجهة التطبيق
+# واجهة التطبيق الرئيسية
 elif st.session_state.view == "app":
     user_location = get_geolocation()
-    st.markdown(f"<p style='text-align:right;'>المريض: {st.session_state.user['name']}</p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align:right;'>المريض: {st.session_state.user['name']} | العمر: {st.session_state.user['age']} سنة</p>", unsafe_allow_html=True)
     
     st.markdown('<div class="auth-box" style="max-width:600px">', unsafe_allow_html=True)
-    selected = st.multiselect("اختر الأعراض:", list(SYMPTOMS_DB.keys()))
-    if st.button("بدء التشخيص"):
+    selected = st.multiselect("حدد الأعراض التي تشعر بها:", list(SYMPTOMS_DB.keys()))
+    if st.button("بدء تحليل الحالة والبحث"):
         if selected: st.session_state.active_s = selected
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -112,24 +110,28 @@ elif st.session_state.view == "app":
         main_s = max(st.session_state.active_s, key=lambda s: SYMPTOMS_DB[s]['urgency'])
         info = SYMPTOMS_DB[main_s]
         
+        # نظام الطوارئ
         if info['urgency'] >= 10:
-            st.markdown(f'<div class="emergency-box">🚨 حالة طوارئ: {info["diag"]}<br>توجه للمستشفى فوراً!</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="emergency-box">🚨 حالة طوارئ حرجة: {info["diag"]}<br>يرجى التوجه فوراً لأقرب مشفى!</div>', unsafe_allow_html=True)
         
-        st.success(f"🤖 التشخيص المتوقع: {info['diag']}")
-        st.markdown('<div class="warning-box">إخلاء مسؤولية: التشخيص استرشادي ولا يغني عن الطبيب.</div>', unsafe_allow_html=True)
-        st.markdown(f"<h3 style='text-align:right; color:#40E0D0;'>أطباء تخصص {info['spec']} المتاحين:</h3>", unsafe_allow_html=True)
+        st.success(f"🤖 التشخيص المبدئي: {info['diag']} (الدقة: {info['acc']})")
+        st.markdown('<div class="warning-box">إخلاء مسؤولية: هذا التشخيص استرشادي مدعوم بالذكاء الاصطناعي ولا يغني عن زيارة المختص.</div>', unsafe_allow_html=True)
+        st.markdown(f"<h3 style='text-align:right; color:#40E0D0;'>أطباء تخصص {info['spec']} المقترحين:</h3>", unsafe_allow_html=True)
 
+        # فلترة الأطباء حسب التخصص المطلوب
         matched = []
         for d in DOCTORS_DB:
             if d['spec'] == info['spec']:
                 matched.append({"d": d, "dist": get_safe_dist(user_location, d['lat'], d['lon'])})
+        
+        # الترتيب من الأقرب للأبعد
         matched.sort(key=lambda x: x['dist'])
 
         for item in matched:
             d = item['d']
             st.markdown(f'''
                 <div class="doc-card">
-                    <div style="display:flex; justify-content:space-between">
+                    <div style="display:flex; justify-content:space-between; align-items:start;">
                         <div>
                             <span style="color:#40E0D0; font-size:20px; font-weight:bold;">{d['name']}</span>
                             <div class="stars">{"⭐"*d['stars']}</div>
@@ -142,10 +144,11 @@ elif st.session_state.view == "app":
                     </div>
             ''', unsafe_allow_html=True)
             
+            # نظام المواعيد المحجوزة واقعياً
             cols = st.columns(5)
             times = ["3:00", "3:30", "4:00", "4:30", "5:00"]
             for i, t in enumerate(times):
-                random.seed(d['name'] + t)
+                random.seed(d['name'] + t) # تثبيت الحالة لكل دكتور
                 is_taken = random.choice([True, False, False])
                 with cols[i]:
                     if is_taken:

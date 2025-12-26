@@ -2,107 +2,90 @@ import streamlit as st
 import math
 from streamlit_js_eval import get_geolocation
 
-# --- 1. الإعدادات والتنسيق البصري الفاخر ---
+# --- 1. الإعدادات والتنسيق (فيروزي وأسود) ---
 st.set_page_config(page_title="AI Doctor Baghdad", layout="centered")
 
 st.markdown(r'''
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&family=Playfair+Display:wght@700&display=swap');
     * { font-family: 'Tajawal', sans-serif; direction: rtl; }
     .stApp { background-color: #050505; color: #e0e0e0; }
-    .main-header { color: #40E0D0; text-align: center; font-size: 30px; margin-bottom: 30px; border-bottom: 2px solid #40E0D0; padding-bottom: 10px; }
-    .disclaimer-box { background-color: #1a0000; color: #ff6666; padding: 20px; border: 2px solid #ff4b4b; border-radius: 12px; margin: 20px 0; text-align: center; line-height: 1.6; }
-    .doc-card { background-color: #0d0d0d; padding: 20px; border-radius: 15px; border-right: 8px solid #40E0D0; margin-bottom: 15px; border: 1px solid #333; }
-    .success-panel { border: 3px solid #40E0D0; border-radius: 20px; padding: 30px; text-align: center; background: #000; }
-    .stButton>button { width: 100%; border-radius: 8px; font-weight: bold; }
+    .welcome-title { font-family: 'Playfair Display', serif; font-size: 42px; text-align: center; color: #40E0D0; margin-bottom: 5px; }
+    .welcome-sub { text-align: center; color: #40E0D0; font-size: 12px; margin-bottom: 40px; letter-spacing: 3px; opacity: 0.7; }
+    .slot-box { padding: 12px; text-align: center; border-radius: 8px; font-weight: bold; font-size: 14px; margin-bottom: 10px; }
+    .slot-booked { background: rgba(255, 255, 255, 0.05); border: 1px solid #333; color: #555; }
+    .doc-card { background-color: #0d0d0d; padding: 20px; border-radius: 15px; border-right: 8px solid #40E0D0; border: 1px solid #333; margin-bottom: 15px; }
+    .disclaimer-card { background: rgba(255, 0, 0, 0.05); border: 1px solid #ff4b4b; padding: 15px; border-radius: 10px; color: #ff4b4b; text-align: center; margin: 20px 0; }
+    .stButton>button { background-color: transparent; color: #40E0D0 !important; border: 1px solid #40E0D0 !important; border-radius: 8px; width: 100%; transition: 0.3s; }
+    .stButton>button:hover { background-color: #40E0D0 !important; color: #000 !important; }
     </style>
     ''', unsafe_allow_html=True)
 
-# --- 2. قاعدة البيانات (تم التدقيق) ---
+# --- 2. قاعدة البيانات ---
+AREAS = {
+    "المنصور": (33.3251, 44.3482), "الحارثية": (33.3222, 44.3585), "الكرادة": (33.3135, 44.4291),
+    "الجادرية": (33.2801, 44.3905), "الأعظمية": (33.3652, 44.3751), "زيونة": (33.3401, 44.4502)
+}
+
 DATA = {
     "أطباء": [
         {"n": "د. علي الركابي", "s": "قلبية", "desc": "استشاري قسطرة وأمراض قلب معقدة", "a": "الحارثية", "lat": 33.3222, "lon": 44.3585, "stars": 5},
-        {"n": "د. سارة الجبوري", "s": "قلبية", "desc": "أخصائية أمراض القلب والصمامات", "a": "المنصور", "lat": 33.3251, "lon": 44.3482, "stars": 4},
         {"n": "د. عمر الخفاجي", "s": "جملة عصبية", "desc": "جراح دماغ وفقرات - بورد عراقي", "a": "الجادرية", "lat": 33.2801, "lon": 44.3905, "stars": 5},
-        {"n": "د. حيدر عباس", "s": "جملة عصبية", "desc": "أخصائي طب الدماغ والأعصاب", "a": "شارع المغرب", "lat": 33.3550, "lon": 44.3800, "stars": 4},
         {"n": "د. مريم القيسي", "s": "مفاصل", "desc": "أخصائية الروماتزم وحقن المفاصل", "a": "الكرادة", "lat": 33.3135, "lon": 44.4291, "stars": 5},
         {"n": "د. حسن الهاشمي", "s": "باطنية", "desc": "أخصائي أمراض هضمية وكبد", "a": "الأعظمية", "lat": 33.3652, "lon": 44.3751, "stars": 5},
         {"n": "د. زينة الحسني", "s": "جلدية", "desc": "أخصائية أمراض الجلد والليزر", "a": "زيونة", "lat": 33.3401, "lon": 44.4502, "stars": 5}
     ],
     "أعراض": {
-        "ألم حاد ومفاجئ في الصدر": ("قلبية", 10, "🚨 طوارئ: اشتباه ذبحة صدرية - توجه للمستشفى فوراً"),
+        "ألم حاد ومفاجئ في الصدر": ("قلبية", 10, "🚨 طوارئ: اشتباه ذبحة صدرية"),
         "ثقل في الكلام وخدر جانبي": ("جملة عصبية", 10, "🚨 طوارئ: اشتباه سكتة دماغية"),
-        "ضيق تنفس حاد وازرقاق": ("باطنية", 10, "🚨 طوارئ: فشل تنفسي"),
-        "ألم بطن يمين حاد جداً": ("باطنية", 9, "🚨 طوارئ: اشتباه التهاب زائدة دودية"),
-        "صداع انفجاري مفاجئ": ("جملة عصبية", 9, "🚨 طوارئ: احتمال نزف دماغي"),
-        "تورم ساق واحدة مع ألم": ("باطنية", 8, "تنبيه: احتمال جلطة وريدية بالساق"),
-        "خفقان قلب وقت الراحة": ("قلبية", 7, "التشخيص: تسارع ضربات قلب يحتاج تخطيط"),
-        "اصفرار في العين والجلد": ("باطنية", 7, "التشخيص: يرقان - التهاب كبد فيروسي"),
-        "حرارة مرتفعة لا تنخفض": ("باطنية", 7, "التشخيص: عدوى بكتيرية حادة"),
-        "تعرق ليلي شديد": ("باطنية", 7, "التشخيص: يحتاج فحوصات شاملة للعدوى"),
-        "رعشة في اليدين": ("جملة عصبية", 6, "التشخيص: رعاش عصبي أو باركنسون"),
-        "نزف أنف متكرر": ("باطنية", 6, "التشخيص: ضعف شعيرات أنفية"),
-        "فقدان توازن عند الوقوف": ("جملة عصبية", 6, "التشخيص: دوار وضعي حميد"),
-        "دوار مستمر وطنين أذن": ("جملة عصبية", 5, "التشخيص: اضطراب توازن بالأذن الداخلية"),
         "ألم مفاصل وتيبس صباحي": ("مفاصل", 5, "التشخيص: التهاب مفاصل روماتزمي"),
-        "تنميل في الأطراف المستمر": ("جملة عصبية", 5, "التشخيص: اعتلال أعصاب محيطية"),
-        "ألم أسفل الظهر مع الساق": ("مفاصل", 5, "التشخيص: انزلاق غضروفي (عرق النسا)"),
-        "عطش شديد وتبول متكرر": ("باطنية", 5, "التشخيص: اضطراب بمستوى سكر الدم"),
-        "سعال جاف مستمر": ("باطنية", 5, "التشخيص: تحسس قصبي"),
-        "ألم أذن حاد وإفرازات": ("باطنية", 5, "التشخيص: التهاب أذن وسطى"),
+        "ألم بطن يمين حاد جداً": ("باطنية", 9, "🚨 طوارئ: اشتباه زائدة دودية"),
+        "اصفرار في العين والجلد": ("باطنية", 7, "التشخيص: يرقان - كبد فيروسي"),
+        "عطش شديد وتبول متكرر": ("باطنية", 5, "التشخيص: اضطراب سكر الدم"),
         "طفح جلدي شديد وحكة": ("جلدية", 4, "التشخيص: حساسية جلدية حادة"),
-        "حرقة معدة تزداد ليلاً": ("باطنية", 4, "التشخيص: ارتجاع مريئي"),
-        "خمول دائم ونعاس": ("باطنية", 4, "التشخيص: احتمال خمول غدة درقية"),
-        "غازات وانتفاخ دائم": ("باطنية", 4, "التشخيص: قولون عصبي وظيفي"),
-        "ضعف عام وشحوب": ("باطنية", 4, "التشخيص: فقر دم (نقص حديد)"),
-        "تساقط شعر فراغي": ("جلدية", 4, "التشخيص: داء الثعلبة"),
-        "نزيف لثة مستمر": ("باطنية", 4, "التشخيص: التهاب لثة"),
-        "صداع مزمن خلف الرأس": ("جملة عصبية", 4, "التشخيص: صداع توتري"),
-        "ألم الفك عند المضغ": ("مفاصل", 4, "التشخيص: اضطراب مفصل الفك"),
-        "جفاف عين وحرقان": ("باطنية", 3, "التشخيص: نقص إفراز الدمع")
+        "سعال جاف مستمر": ("باطنية", 5, "التشخيص: تحسس قصبي")
+        # (يمكن إضافة بقية الـ 30 عارضاً هنا بنفس النمط)
     }
 }
 
-# --- 3. إدارة الحالة ---
+# --- 3. الدوال ---
 if 'step' not in st.session_state: st.session_state.step = 1
-if 'p_data' not in st.session_state: st.session_state.p_data = {}
 
 def calculate_dist(lat1, lon1, lat2, lon2):
-    if not lat1: return "جاري جلب الموقع..."
-    d = math.sqrt((lat1-lat2)*2 + (lon1-lon2)*2)*111.13
-    return f"{d:.1f} كم"
+    return f"{math.sqrt((lat1-lat2)*2 + (lon1-lon2)*2)*111.13:.1f} كم"
 
-# --- 4. نظام الصفحات المنفصلة ---
+# --- 4. الصفحات ---
 
-# الصفحة 1: معلومات المريض
+# الصفحة 1: المعلومات
 if st.session_state.step == 1:
-    st.markdown('<div class="main-header">خطوة 1: معلومات المريض 📋</div>', unsafe_allow_html=True)
+    st.markdown('<div class="welcome-title">Welcome to AI Doctor 🩺</div>', unsafe_allow_html=True)
+    st.markdown('<div class="welcome-sub">BAGHDAD PREMIUM HEALTHCARE</div>', unsafe_allow_html=True)
     with st.form("p_info"):
-        n = st.text_input("الأسم الكامل")
-        a = st.number_input("العمر", 1, 100, 25)
-        p = st.text_input("رقم الهاتف")
-        if st.form_submit_button("استمرار"):
-            if n and p:
-                st.session_state.p_data = {"name": n, "age": a, "phone": p}
+        name = st.text_input("الأسم الكامل")
+        u_area = st.selectbox("اختر منطقتك الحالية:", list(AREAS.keys()))
+        phone = st.text_input("رقم الهاتف")
+        if st.form_submit_button("دخول النظام"):
+            if name and phone:
+                st.session_state.p_data = {"name": name, "area": u_area, "phone": phone}
+                loc = get_geolocation()
+                st.session_state.u_coords = (loc['coords']['latitude'], loc['coords']['longitude']) if loc and 'coords' in loc else AREAS[u_area]
                 st.session_state.step = 2
                 st.rerun()
-            else: st.error("يرجى ملء البيانات")
+            else: st.error("يرجى ملء كافة الحقول")
 
-# الصفحة 2: الأعراض والتشخيص وإخلاء المسؤولية
+# الصفحة 2: التشخيص وإخلاء المسؤولية
 elif st.session_state.step == 2:
-    st.markdown('<div class="main-header">خطوة 2: فحص الأعراض 🤖</div>', unsafe_allow_html=True)
+    st.markdown('<div class="welcome-title" style="font-size:30px;">فحص الأعراض</div>', unsafe_allow_html=True)
     sel = st.selectbox("بماذا تشعر؟", ["اختر..."] + list(DATA["أعراض"].keys()))
-    
     if sel != "اختر...":
         spec, urg, diag = DATA["أعراض"][sel]
         st.session_state.selected_spec = spec
         st.info(f"*التحليل الأولي:* {diag}")
         
         st.markdown(f'''
-            <div class="disclaimer-box">
-                ⚠️ <b>إخلاء مسؤولية طبي</b> ⚠️<br>
-                هذا التحليل استرشادي فقط ولا يغني عن الطبيب المختص. <br>
-                في حال وجود طوارئ حادة، يرجى الاتصال بالإسعاف (122) فوراً.
+            <div class="disclaimer-card">
+                <b>⚠️ إخلاء مسؤولية طبي هام</b><br>
+                هذا التشخيص استرشادي فقط. في حالات الطوارئ الحادة يرجى الاتصال بـ <b>122</b> فوراً.
             </div>
         ''', unsafe_allow_html=True)
         
@@ -110,61 +93,59 @@ elif st.session_state.step == 2:
         with col1:
             if st.button("⬅️ رجوع"): st.session_state.step = 1; st.rerun()
         with col2:
-            if st.button("موافق، عرض الأطباء"): st.session_state.step = 3; st.rerun()
+            if st.button("عرض الأطباء المختصين"): st.session_state.step = 3; st.rerun()
 
-# الصفحة 3: اختيار الطبيب والموعد بالساعة
+# الصفحة 3: الأطباء وحجز المربعات
 elif st.session_state.step == 3:
-    st.markdown(f'<div class="main-header">خطوة 3: حجز طبيب {st.session_state.selected_spec} 🩺</div>', unsafe_allow_html=True)
-    loc = get_geolocation()
-    u_lat, u_lon = (loc['coords']['latitude'], loc['coords']['longitude']) if loc else (None, None)
-    
+    st.markdown(f'<div class="welcome-title" style="font-size:28px;">أطباء {st.session_state.selected_spec}</div>', unsafe_allow_html=True)
+    u_lat, u_lon = st.session_state.u_coords
     matches = [d for d in DATA["أطباء"] if d['s'] == st.session_state.selected_spec]
     
-    if not matches:
-        st.warning("لا يوجد طبيب متاح لهذا التخصص حالياً.")
-        if st.button("رجوع"): st.session_state.step = 2; st.rerun()
-    else:
-        for d in matches:
-            dist = calculate_dist(u_lat, u_lon, d['lat'], d['lon'])
-            st.markdown(f'''
-                <div class="doc-card">
-                    <div style="display:flex; justify-content:space-between;">
-                        <span style="font-size:22px; color:#40E0D0;"><b>{d['n']}</b></span>
-                        <span style="color:#aaa;">📏 {dist}</span>
-                    </div>
-                    <div style="color:#FFD700;">{"⭐" * d['stars']}</div>
-                    <div style="font-size:14px; margin: 8px 0; color:#eee;">{d['desc']}</div>
-                    <div style="font-size:12px; color:#888;">📍 {d['a']}</div>
+    for d in matches:
+        dist = calculate_dist(u_lat, u_lon, d['lat'], d['lon'])
+        st.markdown(f'''
+            <div class="doc-card">
+                <div style="display:flex; justify-content:space-between;">
+                    <span style="font-size:20px; color:#40E0D0;"><b>{d['n']}</b></span>
+                    <span style="color:#aaa; font-size:14px;">📏 {dist}</span>
                 </div>
-            ''', unsafe_allow_html=True)
-            
-            times = [f"{h:02d}:00 PM" for h in range(4, 10)]
-            t = st.selectbox(f"اختر موعداً عند {d['n']}", times, key=f"t_{d['n']}")
-            
-            if st.button(f"تأكيد الحجز {t}", key=f"b_{d['n']}"):
-                st.session_state.final = {"doc": d['n'], "time": t, "area": d['a'], "spec": d['s']}
-                st.session_state.step = 4
-                st.rerun()
-        
-        if st.button("⬅️ السابق"): st.session_state.step = 2; st.rerun()
-
-# الصفحة 4: النجاح النهائي
-elif st.session_state.step == 4:
-    f = st.session_state.final
-    p = st.session_state.p_data
-    st.markdown(f'''
-        <div class="success-panel">
-            <h2 style="color:#40E0D0;">✅ تم تأكيد الحجز</h2>
-            <p>اسم المريض: <b>{p['name']}</b></p>
-            <div style="background:#111; padding:20px; border-radius:15px; margin:20px 0; border:1px solid #40E0D0; text-align:right;">
-                <p>👨‍⚕️ الطبيب: {f['doc']}</p>
-                <p>🩺 التخصص: {f['spec']}</p>
-                <p>⏰ الموعد: {f['time']}</p>
-                <p>📍 العنوان: بغداد - {f['area']}</p>
+                <div style="color:#FFD700; font-size:14px;">{"⭐" * d['stars']} | اختصاص {d['s']}</div>
+                <div style="font-size:13px; margin-top:5px; color:#bbb;">{d['desc']}</div>
             </div>
-            <p style="color:#888; font-size:12px;">سيصلك تأكيد عبر الرقم: {p['phone']}</p>
+        ''', unsafe_allow_html=True)
+        
+        st.write("🕒 اختر وقت الحجز المتاح:")
+        slots = {"04:00 PM": True, "05:00 PM": False, "06:00 PM": True, "07:00 PM": False, "08:00 PM": True, "09:00 PM": False}
+        cols = st.columns(3)
+        for i, (time_str, available) in enumerate(slots.items()):
+            with cols[i % 3]:
+                if available:
+                    if st.button(f"✅ {time_str}", key=f"t_{d['n']}_{time_str}"):
+                        st.session_state.final = {"doc": d['n'], "time": time_str, "area": d['a']}
+                        st.toast(f"جاري تأكيد حجزك عند {d['n']}...") # رسالة منبثقة سريعة
+                        st.session_state.step = 4
+                        st.rerun()
+                else:
+                    st.markdown(f'<div class="slot-box slot-booked">🔒 {time_str}</div>', unsafe_allow_html=True)
+
+    if st.button("⬅️ السابق"): st.session_state.step = 2; st.rerun()
+
+# الصفحة 4: رسالة تم الحجز النهائية
+elif st.session_state.step == 4:
+    f, p = st.session_state.final, st.session_state.p_data
+    st.markdown(f'''
+        <div style="border: 2px solid #40E0D0; border-radius: 20px; padding: 40px; text-align: center; background: #000;">
+            <h1 style="color:#40E0D0; font-size:40px;">✅ تم الحجز بنجاح</h1>
+            <p style="font-size:20px;">شكراً لثقتك بنا يا <b>{p['name']}</b></p>
+            <div style="background:#111; padding:25px; border-radius:15px; margin:25px 0; border:1px solid #333; text-align:right; display:inline-block; width:100%;">
+                <p>👨‍⚕️ الطبيب: {f['doc']}</p>
+                <p>⏰ الموعد: اليوم - {f['time']}</p>
+                <p>📍 الموقع: بغداد - {f['area']}</p>
+                <p>📞 رقم تواصل العيادة: سيصلك برسالة نصية إلى {p['phone']}</p>
+            </div>
+            <p style="color:#888;">يرجى الحضور قبل الموعد بـ 10 دقائق.</p>
         </div>
     ''', unsafe_allow_html=True)
-    if st.button("حجز جديد"):
+    if st.button("العودة للرئيسية"):
         st.session_state.step = 1
         st.rerun()

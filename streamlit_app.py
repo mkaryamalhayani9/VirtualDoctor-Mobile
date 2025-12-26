@@ -3,6 +3,7 @@ import sqlite3
 import hashlib
 import math
 import random
+import pandas as pd
 from streamlit_js_eval import get_geolocation
 
 # --- 1. التصميم البصري الفخم ---
@@ -73,11 +74,11 @@ SYMPTOMS_DB = {
 }
 
 DOCTORS_DB = [
-    {"name": "د. علي الركابي", "title": "استشاري قلبية", "spec": "قلبية", "area": "الحارثية", "lat": 33.322, "lon": 44.358},
-    {"name": "د. عمر الجبوري", "title": "أخصائي جملة عصبية", "spec": "جملة عصبية", "area": "المنصور", "lat": 33.325, "lon": 44.348},
-    {"name": "د. سارة لؤي", "title": "أخصائية جلدية", "spec": "جلدية", "area": "زيونة", "lat": 33.332, "lon": 44.455},
-    {"name": "د. مريم القيسي", "title": "استشارية مفاصل", "spec": "مفاصل", "area": "الكرادة", "lat": 33.313, "lon": 44.429},
-    {"name": "د. ليث الحسيني", "title": "أخصائي صدرية", "spec": "صدرية", "area": "شارع فلسطين", "lat": 33.345, "lon": 44.430}
+    {"name": "د. علي الركابي", "title": "استشاري قلبية", "spec": "قلبية", "area": "الحارثية", "lat": 33.322, "lon": 44.358, "rating": 5},
+    {"name": "د. عمر الجبوري", "title": "أخصائي جملة عصبية", "spec": "جملة عصبية", "area": "المنصور", "lat": 33.325, "lon": 44.348, "rating": 4},
+    {"name": "د. سارة لؤي", "title": "أخصائية جلدية", "spec": "جلدية", "area": "زيونة", "lat": 33.332, "lon": 44.455, "rating": 4},
+    {"name": "د. مريم القيسي", "title": "استشارية مفاصل", "spec": "مفاصل", "area": "الكرادة", "lat": 33.313, "lon": 44.429, "rating": 5},
+    {"name": "د. ليث الحسيني", "title": "أخصائي صدرية", "spec": "صدرية", "area": "شارع فلسطين", "lat": 33.345, "lon": 44.430, "rating": 3}
 ]
 
 # --- 3. الوظائف ---
@@ -116,7 +117,10 @@ if st.session_state.view in ["login", "signup"]:
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif st.session_state.view == "app":
-    user_location = get_geolocation()
+    user_location = get_geolocation(silent=True)
+    if user_location is None:
+        user_location = {'coords': {'latitude': 33.320, 'longitude': 44.360}}  # قيمة افتراضية
+    
     st.markdown('<div class="auth-box" style="max-width:500px">', unsafe_allow_html=True)
     selected = st.multiselect("حدد الأعراض (يمكنك اختيار أكثر من واحد):", list(SYMPTOMS_DB.keys()))
     if st.button("شخص الآن وحدد أقرب طبيب 🔍"):
@@ -141,14 +145,19 @@ elif st.session_state.view == "app":
 
         for res in results:
             d = res['d']
+            stars = "⭐" * d["rating"] + "☆" * (5 - d["rating"])
+            
             st.markdown(f'''
             <div class="doc-card">
-                <div style="display:flex; justify-content:space-between">
+                <div style="display:flex; justify-content:space-between; align-items:center">
                     <span style="color:#40E0D0; font-size:20px; font-weight:bold;">{d['name']}</span>
                     <span style="font-size:12px;">📍 {d['area']} (يبعد {res['dist']} كم)</span>
                 </div>
+                <div style="color:#FFD700; font-size:14px; margin-bottom:5px;">{stars}</div>
                 <div style="color:#888; font-size:14px; margin-bottom:10px;">{d['title']}</div>
             ''', unsafe_allow_html=True)
+            
+            st.map(pd.DataFrame([{'lat': d['lat'], 'lon': d['lon']}]))  # خريطة مصغرة
             
             st.markdown('<div style="text-align: right; font-weight: bold; margin-top: 20px; color: #ffffff;">جدول مواعيد اليوم:</div>', unsafe_allow_html=True)
             t_cols = st.columns(5)

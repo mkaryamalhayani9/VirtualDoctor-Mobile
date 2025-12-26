@@ -4,7 +4,7 @@ import random
 import pandas as pd
 from streamlit_js_eval import get_geolocation
 
-# --- 1. التصميم البصري (الهوية البصرية النهائية) ---
+# --- 1. الهوية البصرية والتصميم ---
 st.set_page_config(page_title="AI Doctor 🩺", layout="wide")
 
 st.markdown(r'''
@@ -15,16 +15,16 @@ st.markdown(r'''
     .classic-logo { color: #40E0D0; text-align: center; font-size: 45px; font-weight: bold; margin-bottom: 5px; }
     .auth-box { max-width: 500px; margin: auto; padding: 25px; background-color: #0d0d0d; border-radius: 15px; border: 1px solid rgba(64, 224, 208, 0.2); text-align: right; }
     .doc-card { background-color: #0d0d0d; padding: 20px; border-radius: 15px; border-right: 6px solid #40E0D0; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05); }
-    .success-ticket { background: linear-gradient(135deg, #1d4e4a 0%, #0d0d0d 100%); border: 2px solid #40E0D0; padding: 25px; border-radius: 20px; text-align: center; margin-bottom: 30px; border-style: dashed; }
-    .slot-taken { background-color: #1a1a1a; color: #555; padding: 8px; border-radius: 5px; text-align: center; text-decoration: line-through; border: 1px solid #333; font-size: 12px; }
+    .success-ticket { background: linear-gradient(135deg, #1d4e4a 0%, #0d0d0d 100%); border: 2px dashed #40E0D0; padding: 25px; border-radius: 20px; text-align: center; margin-bottom: 30px; }
+    .stars { color: #FFD700; font-size: 18px; margin-bottom: 5px; }
+    .slot-taken { background-color: #1a1a1a; color: #555; padding: 8px; border-radius: 5px; text-align: center; text-decoration: line-through; border: 1px solid #333; font-size: 12px; height: 40px; display: flex; align-items: center; justify-content: center; }
     .emergency-box { background-color: #4a0000; color: #ff4b4b; padding: 20px; border-radius: 10px; border: 2px solid #ff4b4b; text-align: center; font-size: 20px; font-weight: bold; margin-bottom: 20px; animation: blinker 1.2s linear infinite; }
     @keyframes blinker { 50% { opacity: 0.4; } }
     .stButton>button { background: linear-gradient(135deg, #1d4e4a 0%, #40E0D0 100%) !important; color: #000 !important; font-weight: bold; border-radius: 8px; width: 100%; height: 45px; }
-    input { text-align: right; direction: rtl; }
     </style>
     ''', unsafe_allow_html=True)
 
-# --- 2. محرك البيانات (24 عرضاً طبياً) ---
+# --- 2. محرك البيانات التشخيصية ---
 SYMPTOMS_DB = {
     "ألم صدر حاد": {"spec": "قلبية", "urgency": 10, "diag": "اشتباه ذبحة صدرية"},
     "ثقل كلام وتدلي وجه": {"spec": "جملة عصبية", "urgency": 10, "diag": "اشتباه سكتة دماغية"},
@@ -52,17 +52,16 @@ SYMPTOMS_DB = {
     "كسر عظمي": {"spec": "عظام", "urgency": 9, "diag": "كسر عظمي"}
 }
 
-# --- 3. قاعدة الأطباء ---
 DOCTORS_DB = [
     {"name": "د. علي الركابي", "title": "استشاري قلبية", "spec": "قلبية", "area": "الحارثية", "lat": 33.322, "lon": 44.358, "stars": 5},
     {"name": "د. محمد الزيدي", "title": "أخصائي قلب وقسطرة", "spec": "قلبية", "area": "المنصور", "lat": 33.324, "lon": 44.345, "stars": 5},
     {"name": "د. عمر الجبوري", "title": "أخصائي جملة عصبية", "spec": "جملة عصبية", "area": "المنصور", "lat": 33.325, "lon": 44.348, "stars": 5},
     {"name": "د. ياسمين طه", "title": "أخصائية جراحة العيون", "spec": "عيون", "area": "الجادرية", "lat": 33.280, "lon": 44.390, "stars": 5},
-    {"name": "د. مريم القيسي", "title": "استشارية مفاصل", "spec": "مفاصل", "area": "الكرادة", "lat": 33.313, "lon": 44.429, "stars": 4},
+    {"name": "د. مريم القيسي", "title": "استشارية مفاصل وروماتيزم", "spec": "مفاصل", "area": "الكرادة", "lat": 33.313, "lon": 44.429, "stars": 4},
     {"name": "د. ليث الحسيني", "title": "أخصائي صدرية", "spec": "صدرية", "area": "شارع فلسطين", "lat": 33.345, "lon": 44.430, "stars": 5}
 ]
 
-# --- 4. المنطق التشغيلي ---
+# --- 3. المنطق التشغيلي ---
 if "view" not in st.session_state: st.session_state.view = "login"
 if "booked" not in st.session_state: st.session_state.booked = None
 
@@ -73,45 +72,48 @@ def get_safe_dist(u_loc, d_lat, d_lon):
             lat1 = u_loc['coords'].get('latitude') or lat1
             lon1 = u_loc['coords'].get('longitude') or lon1
         return round(math.sqrt((lat1-d_lat)*2 + (lon1-d_lon)*2) * 111, 1)
-    except: return 4.5
+    except: return 5.0
 
 st.markdown('<div class="classic-logo">Welcome to AI Doctor 🩺</div>', unsafe_allow_html=True)
 
+# --- صفحة الدخول ---
 if st.session_state.view == "login":
     st.markdown('<div class="auth-box">', unsafe_allow_html=True)
     name = st.text_input("الأسم الكامل")
-    age = st.number_input("العمر", 1, 100)
+    age = st.number_input("العمر", 1, 100, value=25)
     pwd = st.text_input("الباسورد", type="password")
     if st.button("دخول للنظام"):
         if name and pwd:
             st.session_state.user = {"name": name, "age": age}
             st.session_state.view = "app"; st.rerun()
+        else: st.warning("يرجى إدخال جميع البيانات")
     st.markdown('</div>', unsafe_allow_html=True)
 
+# --- الصفحة الرئيسية للنظام ---
 elif st.session_state.view == "app":
     u_loc = get_geolocation()
     
-    # بطاقة الحجز المرتبة
+    # عرض تذكرة الحجز عند النجاح
     if st.session_state.booked:
         b = st.session_state.booked
         st.markdown(f'''
             <div class="success-ticket">
                 <h2 style="color:#40E0D0; margin-bottom:10px;">✅ تم الحجز بنجاح</h2>
-                <p style="font-size:18px;">المريض: <b>{st.session_state.user['name']}</b></p>
+                <p>المريض: <b>{st.session_state.user['name']}</b></p>
                 <div style="background:rgba(64,224,208,0.1); padding:15px; border-radius:10px; margin:15px 0;">
                     <p>الطبيب: <b>{b['doc']}</b></p>
                     <p>الموعد: <span style="color:#40E0D0; font-weight:bold;">الساعة {b['time']}</span></p>
-                    <p>العنوان: {b['area']}</p>
+                    <p>المكان: {b['area']}</p>
                 </div>
-                <small style="color:#888;">يرجى إبراز هذه التذكرة عند وصولك للعيادة</small>
+                <small style="color:#888;">يرجى تصوير الشاشة وإبراز التذكرة للموظف</small>
             </div>
         ''', unsafe_allow_html=True)
-        if st.button("إغلاق التذكرة والعودة"):
+        if st.button("العودة للرئيسية"):
             st.session_state.booked = None; st.rerun()
         st.divider()
 
-    selected = st.multiselect("اختر الأعراض التي تشعر بها الآن:", list(SYMPTOMS_DB.keys()))
-    if st.button("بدء الفحص الذكي"):
+    selected = st.multiselect("ما هي الأعراض التي تشتكي منها؟", list(SYMPTOMS_DB.keys()))
+    if st.button("تشخيص الحالة الآن"):
         if selected: st.session_state.active_s = selected
 
     if "active_s" in st.session_state:
@@ -119,7 +121,7 @@ elif st.session_state.view == "app":
         info = SYMPTOMS_DB[main_s]
         
         if info['urgency'] >= 10:
-            st.markdown(f'<div class="emergency-box">🚨 حالة طوارئ: {info["diag"]} - توجه للمشفى!</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="emergency-box">🚨 تحذير طوارئ: {info["diag"]}</div>', unsafe_allow_html=True)
         
         st.success(f"🤖 التشخيص المتوقع: {info['diag']}")
         
@@ -129,23 +131,26 @@ elif st.session_state.view == "app":
             with st.container():
                 st.markdown(f'''
                     <div class="doc-card">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; justify-content:space-between; align-items:start;">
                             <div>
                                 <span style="color:#40E0D0; font-size:20px; font-weight:bold;">{d['name']}</span>
+                                <div class="stars">{"⭐"*d['stars']}</div>
                                 <div style="color:#888;">{d['title']} - {d['area']}</div>
                             </div>
-                            <div style="text-align:left; color:#40E0D0;">📏 {dist} كم</div>
+                            <div style="text-align:left; color:#40E0D0; font-weight:bold;">📏 {dist} كم</div>
                         </div>
                 ''', unsafe_allow_html=True)
                 
+                # الخريطة
                 st.map(pd.DataFrame({'lat': [d['lat']], 'lon': [d['lon']]}), zoom=13)
                 
-                st.write("🕒 الأوقات المتاحة اليوم:")
+                st.write("🕒 اختر موعد الحجز:")
                 cols = st.columns(5)
                 times = ["3:00", "3:30", "4:00", "4:30", "5:00"]
                 for i, t in enumerate(times):
                     random.seed(d['name'] + t)
-                    if random.choice([True, False, False]):
+                    is_taken = random.choice([True, False, False])
+                    if is_taken:
                         cols[i].markdown(f'<div class="slot-taken">{t} 🔒</div>', unsafe_allow_html=True)
                     else:
                         if cols[i].button(t, key=f"{d['name']}_{t}"):

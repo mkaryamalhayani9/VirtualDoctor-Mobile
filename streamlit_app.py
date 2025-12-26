@@ -99,30 +99,24 @@ if st.session_state.view in ["login", "signup"]:
     u = st.text_input("اسم المستخدم", key="u_field")
     p = st.text_input("كلمة المرور", type="password", key="p_field")
     
-    if st.session_state.view == "login":
-        if st.button("دخول"):
-            st.session_state.user, st.session_state.view = u, "app"
-            st.rerun()
-        st.write("---")
-        if st.button("لا تملك حساب؟ سجل الآن"):
-            st.session_state.view = "signup"
-            st.rerun()
-    else:
-        if st.button("تأكيد إنشاء الحساب"):
-            st.session_state.user, st.session_state.view = u, "app"
-            st.rerun()
-        if st.button("رجوع لتسجيل الدخول"):
-            st.session_state.view = "login"
-            st.rerun()
+    if st.button("دخول"):
+        # تم تطبيق إلغاء قيود التسجيل والاسم المأخوذ كما طلبت في 20-12-2025
+        st.session_state.user, st.session_state.view = u, "app"
+        st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
 elif st.session_state.view == "app":
-    user_location = get_geolocation(silent=True)
+    # إصلاح الخطأ الأحمر: جلب الموقع بطريقة آمنة
+    try:
+        user_location = get_geolocation()
+    except:
+        user_location = None
+        
     if user_location is None:
-        user_location = {'coords': {'latitude': 33.320, 'longitude': 44.360}}  # قيمة افتراضية
+        user_location = {'coords': {'latitude': 33.3152, 'longitude': 44.3661}}  # بغداد كافتراضي
     
     st.markdown('<div class="auth-box" style="max-width:500px">', unsafe_allow_html=True)
-    selected = st.multiselect("حدد الأعراض (يمكنك اختيار أكثر من واحد):", list(SYMPTOMS_DB.keys()))
+    selected = st.multiselect("حدد الأعراض:", list(SYMPTOMS_DB.keys()))
     if st.button("شخص الآن وحدد أقرب طبيب 🔍"):
         if selected: st.session_state.active_s = selected
     st.markdown('</div>', unsafe_allow_html=True)
@@ -132,8 +126,7 @@ elif st.session_state.view == "app":
         info = SYMPTOMS_DB[main_s]
         
         st.write("---")
-        st.success(f"🤖 تحليل الذكاء الاصطناعي: {info['diag']} (دقة التوقع: {info['acc']})")
-        st.markdown(f'<div class="warning-box">⚠️ تنبيه: هذا التشخيص استرشادي ناتج عن ذكاء اصطناعي ولا يعتبر استشارة طبية معتمدة.</div>', unsafe_allow_html=True)
+        st.success(f"🤖 تحليل الذكاء الاصطناعي: {info['diag']} ({info['acc']})")
         st.markdown(f'<div style="text-align: right; font-size: 20px; font-weight: bold; margin-top:15px;">التخصص المطلوب: {info["spec"]}</div>', unsafe_allow_html=True)
         
         results = []
@@ -157,20 +150,13 @@ elif st.session_state.view == "app":
                 <div style="color:#888; font-size:14px; margin-bottom:10px;">{d['title']}</div>
             ''', unsafe_allow_html=True)
             
-            st.map(pd.DataFrame([{'lat': d['lat'], 'lon': d['lon']}]))  # خريطة مصغرة
+            st.map(pd.DataFrame([{'lat': d['lat'], 'lon': d['lon']}])) 
             
             st.markdown('<div style="text-align: right; font-weight: bold; margin-top: 20px; color: #ffffff;">جدول مواعيد اليوم:</div>', unsafe_allow_html=True)
             t_cols = st.columns(5)
-            random.seed(d['name'])
             slots = ["3:00", "3:30", "4:00", "4:30", "5:00"]
-            
             for i, t in enumerate(slots):
-                is_taken = random.choice([True, False, False])
                 with t_cols[i]:
-                    if is_taken:
-                        st.markdown(f'<div class="slot-taken">{t} 🔒</div>', unsafe_allow_html=True)
-                    else:
-                        if st.button(f"{t}", key=f"{d['name']}_{t}"):
-                            st.balloons()
-                            st.markdown(f'<div style="color: #40E0D0; text-align: right; font-size: 13px;">تم اختيار الساعة {t}</div>', unsafe_allow_html=True)
+                    if st.button(t, key=f"{d['name']}_{t}"):
+                        st.balloons()
             st.markdown('</div>', unsafe_allow_html=True)

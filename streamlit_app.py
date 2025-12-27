@@ -56,7 +56,7 @@ if 'step' not in st.session_state: st.session_state.step = 1
 # --- الصفحة 1: الدخول ---
 if st.session_state.step == 1:
     st.markdown('<div class="welcome-title">Welcome to AI Doctor 🩺</div>', unsafe_allow_html=True)
-    st.markdown('<div class="ai-warning">نظام ذكي لمساعدة أهالي بغداد في اختيار الاختصاص الطبي الأنسب</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ai-warning">⚠️ تنبيه: هذا النظام يعمل بالذكاء الاصطناعي للمساعدة في التشخيص، لا يعوض عن الفحص الطبي المباشر في الحالات الحرجة.</div>', unsafe_allow_html=True)
     name = st.text_input("الأسم الكامل")
     u_area = st.selectbox("اختر منطقتك الحالية في بغداد:", sorted(list(AREAS_COORDS.keys())))
     phone = st.text_input("رقم الهاتف")
@@ -91,9 +91,9 @@ elif st.session_state.step == 2:
                     if s in res: st.session_state.spec = s; break
                 st.session_state.diag_msg = res.split("التشخيص:")[1].strip() if "التشخيص:" in res else res
                 st.session_state.diag_ready = True
-            except:
-                st.error("تأكد من إعدادات المفتاح السري (Secrets)")
-
+            except Exception as e:
+    st.error(f"فشل الاتصال بمحرك الذكاء الاصطناعي: {e}")
+    
     if st.session_state.get('diag_ready'):
         st.markdown(f'''<div class="diag-box">
             <h4 style="color: #40E0D0;">🔍 نتيجة التحليل:</h4>

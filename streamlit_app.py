@@ -82,7 +82,7 @@ SYMPTOM_KEYWORDS = {
 }
 
 def calculate_dist(lat1, lon1, lat2, lon2):
-    return math.sqrt((lat1-lat2)**2 + (lon1-lon2)**2) * 111.13
+    return math.sqrt((lat1-lat2)*2 + (lon1-lon2)*2) * 111.13
 
 if 'step' not in st.session_state:
     st.session_state.step = 1
@@ -102,7 +102,7 @@ if st.session_state.step == 1:
             st.rerun()
 
 # --- الصفحة 2 ---
-elif st.session_state.step ==2:
+elif st.session_state.step == 2:
     st.markdown('<div class="page-header">AI DR ⛑️</div>', unsafe_allow_html=True)
 
     text = st.text_area("📝 اشرح حالتك الصحية بالتفصيل:", height=160)
@@ -140,7 +140,7 @@ elif st.session_state.step ==2:
                     ''',
                     unsafe_allow_html=True
                 )
-           else:
+            else:
                 st.markdown(
                     f'''
                     <div class="diag-box">
@@ -164,9 +164,7 @@ elif st.session_state.step == 3:
         "07:30 PM": False,
         "09:00 PM": True
     }
-    st.markdown('<div class="page-header">🏥 أقرب طبيب متاح</div>', unsafe_allow_html=True)
-# --- الصفحة 3 ---
-elif st.session_state.step == 3:
+
     st.markdown('<div class="page-header">🏥 أقرب طبيب متاح</div>', unsafe_allow_html=True)
 
     u_lat, u_lon = st.session_state.coords
@@ -185,8 +183,6 @@ elif st.session_state.step == 3:
         st.warning("❌ لا يوجد أطباء متاحين حالياً لهذا التخصص.")
     else:
         matches = sorted(matches, key=lambda x: x["dist"])
-
-        # نختار الأقرب تلقائياً
         best = matches[0]
 
         st.markdown(

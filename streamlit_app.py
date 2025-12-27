@@ -2,7 +2,7 @@ import streamlit as st
 import math
 from streamlit_js_eval import get_geolocation
 
-# --- 1. التنسيق (توسيط كامل العناصر وتنسيق الطوارئ) ---
+# --- 1. التنسيق (توسيط وتنسيق الطوارئ) ---
 st.set_page_config(page_title="AI Doctor Baghdad", layout="centered")
 
 st.markdown(r'''
@@ -13,7 +13,6 @@ st.markdown(r'''
     .welcome-title { font-family: 'Playfair Display', serif; font-size: 42px; color: #40E0D0; margin-bottom: 5px; }
     .welcome-sub { color: #40E0D0; font-size: 12px; margin-bottom: 40px; letter-spacing: 3px; opacity: 0.7; }
     
-    /* تنسيق المربعات في الوسط */
     .diag-box, .emergency-box { 
         margin: 20px auto; 
         max-width: 600px; 
@@ -41,7 +40,6 @@ st.markdown(r'''
     .wish-safe { color: #40E0D0; font-size: 24px; font-weight: bold; margin-top: 20px; display: block; }
     </style>
     ''', unsafe_allow_html=True)
-
 # --- 2. قاعدة البيانات (تعدد الأطباء + 30 عارض) ---
 AREAS = {
     "المنصور": (33.3251, 44.3482), "الحارثية": (33.3222, 44.3585), "الكرادة": (33.3135, 44.4291),
@@ -88,37 +86,47 @@ def calculate_dist(lat1, lon1, lat2, lon2):
         return math.sqrt(max(0, val)) * 111.13
     except: return 0.0
 
-# --- الصفحة 1: المعلومات ---
+# --- الصفحة 1: المعلومات (الموقع المحدث) ---
 if st.session_state.step == 1:
     st.markdown('<div class="welcome-title">Welcome to AI Doctor 🩺</div>', unsafe_allow_html=True)
     st.markdown('<div class="welcome-sub">BAGHDAD PREMIUM HEALTHCARE</div>', unsafe_allow_html=True)
     with st.container():
         name = st.text_input("الأسم الكامل")
-        u_area = st.selectbox("منطقتك الحالية:", sorted(list(AREAS.keys())))
+        u_area = st.selectbox("منطقتك الحالية في بغداد:", sorted(list(AREAS.keys())))
         phone = st.text_input("رقم الهاتف")
         if st.button("دخول النظام"):
             if name and phone:
                 st.session_state.p_data = {"name": name, "area": u_area, "phone": phone}
+                # تحديث الموقع الذكي
                 loc = get_geolocation()
-                st.session_state.u_coords = (loc['coords']['latitude'], loc['coords']['longitude']) if loc and 'coords' in loc else AREAS[u_area]
+                if loc and 'coords' in loc:
+                    st.session_state.u_coords = (loc['coords']['latitude'], loc['coords']['longitude'])
+                else:
+                    st.session_state.u_coords = AREAS[u_area]
                 st.session_state.step = 2; st.rerun()
 
-# --- الصفحة 2: التشخيص (متمركز في الوسط) ---
+# --- الصفحة 2: اختيار أعراض متعددة ---
 elif st.session_state.step == 2:
-    st.markdown('<div class="welcome-title" style="font-size:35px;">AI Doctor ⛑️</div>', unsafe_allow_html=True)
-    sel = st.selectbox("بماذا تشعر اليوم؟", ["اختر العارض..."] + list(DATA["أعراض"].keys()))
-    if sel != "اختر العارض...":
-        spec, diag = DATA["أعراض"][sel]
+    st.markdown('<div class="welcome-title" style="font-size:35px;">التشخيص الذكي ⛑️</div>', unsafe_allow_html=True)
+    sels = st.multiselect("اختر الأعراض التي تشعر بها (يمكنك اختيار أكثر من واحد):", list(DATA["أعراض"].keys()))
+    
+    if sels:
+        # فرز الأعراض حسب الخطورة (Urgency)
+        sorted_sels = sorted(sels, key=lambda x: DATA["أعراض"][x][2], reverse=True)
+        top_symptom = sorted_sels[0]
+        spec, diag, urg = DATA["أعراض"][top_symptom]
         st.session_state.selected_spec = spec
+        
         box_class = "emergency-box" if "🚨" in diag else "diag-box"
-        st.markdown(f'<div class="{box_class}"><h4>🔍 التشخيص الذكي:</h4><p style="font-size:18px;">{diag}</p></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="{box_class}"><h4>🔍 نتيجة التحليل:</h4><p style="font-size:18px;">{diag}</p><small>بناءً على العارض الأهم: {top_symptom}</small></div>', unsafe_allow_html=True)
+        
         col1, col2 = st.columns(2)
         with col1:
             if st.button("⬅️ رجوع"): st.session_state.step = 1; st.rerun()
         with col2:
-            if st.button("عرض الأطباء"): st.session_state.step = 3; st.rerun()
+            if st.button("عرض أفضل الأطباء"): st.session_state.step = 3; st.rerun()
 
-# --- الصفحة 3: المواعيد (ترشيح متعدد + 3-9 مساءً) ---
+# --- الصفحة 3: المواعيد (ترشيح متعدد) ---
 elif st.session_state.step == 3:
     st.markdown('<div class="welcome-title" style="font-size:28px;">أطباء مرشحون لك 📅</div>', unsafe_allow_html=True)
     u_lat, u_lon = st.session_state.u_coords
@@ -131,18 +139,17 @@ elif st.session_state.step == 3:
                 <div>
                     <span style="font-size:22px; color:#40E0D0;"><b>{d['n']}</b></span><br>
                     <span style="color:#FFD700; font-size:15px;">{"⭐" * d['stars']} | اختصاص {d['s']}</span><br>
-                    <span style="color:#40E0D0;">📍 {d['current_dist']:.1f} كم</span>
+                    <span style="color:#40E0D0;">📍 يبعد عنك {d['current_dist']:.1f} كم</span>
                 </div>
-                <div style="font-size:14px; margin-top:10px; color:#bbb;">{d['desc']} - {d['a']}</div>
             </div>
         ''', unsafe_allow_html=True)
         
         slots = {"03:00 PM": True, "05:00 PM": True, "07:00 PM": True, "09:00 PM": True}
-        cols = st.columns(len(slots))
-        for i, (time_str, available) in enumerate(slots.items()):
+        cols = st.columns(4)
+        for i, (t_str, avail) in enumerate(slots.items()):
             with cols[i]:
-                if st.button(f"✅ {time_str}", key=f"t_{d['n']}_{time_str}"):
-                    st.session_state.final = {"doc": d['n'], "time": time_str, "area": d['a'], "phone": d['p']}
+                if st.button(f"✅ {t_str}", key=f"t_{d['n']}_{t_str}"):
+                    st.session_state.final = {"doc": d['n'], "time": t_str, "area": d['a'], "phone": d['p']}
                     st.session_state.step = 4; st.rerun()
 
     if st.button("⬅️ السابق"): st.session_state.step = 2; st.rerun()

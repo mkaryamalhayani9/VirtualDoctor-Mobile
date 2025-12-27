@@ -7,8 +7,8 @@ try:
     if "GEMINI_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         # تم تحديث اسم الموديل هنا لحل مشكلة الـ 404 الظاهرة في صورتك
- models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
- model = genai.GenerativeModel(models[0])
+        models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        model = genai.GenerativeModel(models[0])
     else:
         st.error("⚠️ لم يتم العثور على المفتاح في Secrets")
 except Exception as e:

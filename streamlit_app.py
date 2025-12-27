@@ -112,48 +112,57 @@ if st.session_state.step == 1:
                 st.session_state.step = 2; st.rerun()
 
 # --- الصفحة 2: ⛑️ Ai Dr. ---
-# --- الصفحة 2: ⛑️ Ai Dr. (التحديث الجديد) ---
 elif st.session_state.step == 2:
-    st.markdown('<div class="page-header">⛑️ AI DR. Analysis</div>', unsafe_allow_html=True)
+    st.markdown('<div class="page-header">AI DR.⛑️</div>', unsafe_allow_html=True)
     
-    # إخلاء مسؤولية قانوني
+    # 1. إخلاء مسؤولية (قانوني وواضح)
     st.markdown('''
-        <div style="background-color: #1a1a1a; padding: 15px; border-right: 5px solid #ffcc00; margin-bottom: 20px; text-align: right; border-radius: 5px;">
-            <strong style="color: #ffcc00;">⚠️ إخلاء مسؤولية:</strong><br>
-            <small style="color: #bbb;">هذا التحليل برمجي ولا يعتد به كشخيص طبي نهائي. في الحالات الحرجة يرجى مراجعة الطوارئ فوراً.</small>
+        <div style="background-color: #1a1a1a; padding: 12px; border: 1px solid #444; border-right: 5px solid #ff4b4b; border-radius: 5px; margin-bottom: 20px;">
+            <strong style="color: #ff4b4b;">⚠️ إخلاء مسؤولية:</strong> 
+            هذا النظام استرشادي فقط. النتائج والنسب الظاهرة هي تحليل برمجي أولي ولا تعتبر تشخيصاً طبياً معتمداً. 
+            في حالات الطوارئ، توجه فوراً للمستشفى.
         </div>
     ''', unsafe_allow_html=True)
 
-    sels = st.multiselect("اختر الأعراض التي تعاني منها:", list(DATA["أعراض"].keys()))
+    sels = st.multiselect("اختر جميع الأعراض التي تشعر بها حالياً:", list(DATA["أعراض"].keys()))
     
     if sels:
+        # حساب التخصص الأكثر احتمالاً بناءً على أخطر عرض تم اختياره
         sorted_sels = sorted(sels, key=lambda x: DATA["أعراض"][x][2], reverse=True)
         top_symptom = sorted_sels[0]
         spec, diag, urg = DATA["أعراض"][top_symptom]
         
-        # حساب نسبة دقة وهمية ذكية بناءً على تكرار التخصص
-        count = sum(1 for s in sels if DATA["أعراض"][s][0] == spec)
-        accuracy = min(70 + (count * 7), 99) 
+        # --- معادلة الدقة المئوية الذكية ---
+        # تحسب النسبة بناءً على عدد الأعراض المتوافقة مع التخصص المختار
+        match_count = sum(1 for s in sels if DATA["أعراض"][s][0] == spec)
+        # نسبة أساسية 82.4% تزيد بـ 4.2% لكل عرض إضافي متوافق، بحد أقصى 99.1%
+        accuracy = min(82.4 + (match_count * 4.2), 99.1) 
         
         st.session_state.selected_spec = spec
         
+        # 2. تنبيه الطوارئ (يظهر فقط للحالات الحرجة جداً)
         if urg >= 9:
-            # تنبيه الطوارئ فقط للحالات الخطرة جداً
             st.markdown(f'''
                 <div class="emergency-box">
-                    <h2 style="color: #ff4b4b; margin:0;">🚨 حالة طوارئ حرجة</h2>
-                    <p style="font-size:20px; font-weight:bold;">{diag}</p>
+                    <h2 style="color: #ff4b4b; margin:0; font-size:24px;">🚨 حالة طارئة قصوى</h2>
+                    <p style="font-size:20px; font-weight:bold; margin:10px 0;">{diag}</p>
                     <hr style="border-color: rgba(255,255,255,0.2)">
-                    <p style="font-size:14px;">يرجى التوجه لأقرب مستشفى في منطقة <b>{st.session_state.p_data['area']}</b> فوراً.</p>
+                    <p style="font-size:16px;">دقة التحليل: <span style="color:#ff4b4b;">{accuracy}%</span></p>
+                    <p style="font-size:14px; background:white; color:black; padding:5px; border-radius:5px;">
+                        يتوجب عليك التوجه فوراً لأقرب طوارئ في منطقة <b>{st.session_state.p_data['area']}</b>
+                    </p>
                 </div>
             ''', unsafe_allow_html=True)
         else:
-            # التشخيص العادي مع نسبة الدقة
+            # 3. التشخيص الاعتيادي مع النسبة المئوية
             st.markdown(f'''
                 <div class="diag-box">
-                    <h4 style="color: #40E0D0;">🔍 التحليل الأولي:</h4>
-                    <p style="font-size:19px;">{diag}</p>
-                    <p style="font-size:13px; color:#888;">نسبة دقة المطابقة: <b>%{accuracy}</b></p>
+                    <h4 style="color: #40E0D0;">🔍 نتيجة التحليل الأولي:</h4>
+                    <p style="font-size:22px; font-weight:bold;">{diag}</p>
+                    <div style="margin-top:15px; background: rgba(64, 224, 208, 0.1); padding: 10px; border-radius: 8px;">
+                        <span style="font-size:14px; color: #aaa;">نسبة دقة المطابقة البرمجية:</span><br>
+                        <span style="font-size:24px; color: #40E0D0; font-weight: bold;">{accuracy}%</span>
+                    </div>
                 </div>
             ''', unsafe_allow_html=True)
 
@@ -161,7 +170,7 @@ elif st.session_state.step == 2:
         with col1:
             if st.button("⬅️ تعديل الأعراض"): st.session_state.step = 1; st.rerun()
         with col2:
-            if st.button("إيجاد طبيب مختص 🏥"): st.session_state.step = 3; st.rerun()
+            if st.button("حجز موعد مع مختص 🏥"): st.session_state.step = 3; st.rerun()
 # --- الصفحة 3: Appointment ⏱️ ---
 elif st.session_state.step == 3:
     st.markdown('<div class="page-header">Appointment ⏱️</div>', unsafe_allow_html=True)

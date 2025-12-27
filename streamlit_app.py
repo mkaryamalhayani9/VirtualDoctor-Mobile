@@ -14,7 +14,7 @@ except Exception as e:
     st.error(f"❌ فشل الاتصال بمحرك الذكاء الاصطناعي: {e}")
 
 # --- 2. التنسيق المتطور (نفس ألوانك ومسمياتك) ---
-st.set_page_config(page_title="AI Doctor Baghdad", layout="centered")
+st.set_page_config(page_title="AI Doctor 🩺 ", layout="centered")
 
 st.markdown(r'''
     <style>

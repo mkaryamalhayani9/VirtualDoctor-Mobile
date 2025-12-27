@@ -186,7 +186,7 @@ elif st.session_state.step == 2:
 elif st.session_state.step == 3:
     st.markdown(f'''
         <div class="custom-frame" style="text-align:center; border-style:solid;">
-            <div style="font-size:60px; margin-bottom:10px;">💐</div>
+            <div style="font-size:60px; margin-bottom:10px;">
             <h2 style="color:#40E0D0; margin-bottom:20px;">تم تثبيت حجزك بنجاح</h2>
             <div style="text-align:right; line-height:2.2;">
                 <p>👤 <b>المريض:</b> {st.session_state.p_info['name']}</p>

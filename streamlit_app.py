@@ -140,7 +140,7 @@ elif st.session_state.step ==2:
                     ''',
                     unsafe_allow_html=True
                 )
-            else:
+           else:
                 st.markdown(
                     f'''
                     <div class="diag-box">
@@ -154,14 +154,17 @@ elif st.session_state.step ==2:
                 if st.button("🏥 تحويل تلقائي لأقرب طبيب متاح"):
                     st.session_state.step = 3
                     st.rerun()
-AVAILABLE_SLOTS = {
-    "03:00 PM": True,
-    "04:30 PM": False,
-    "06:00 PM": True,
-    "07:30 PM": False,
-    "09:00 PM": True
-}
 
+# --- الصفحة 3 ---
+elif st.session_state.step == 3:
+    AVAILABLE_SLOTS = {
+        "03:00 PM": True,
+        "04:30 PM": False,
+        "06:00 PM": True,
+        "07:30 PM": False,
+        "09:00 PM": True
+    }
+    st.markdown('<div class="page-header">🏥 أقرب طبيب متاح</div>', unsafe_allow_html=True)
 # --- الصفحة 3 ---
 elif st.session_state.step == 3:
     st.markdown('<div class="page-header">🏥 أقرب طبيب متاح</div>', unsafe_allow_html=True)

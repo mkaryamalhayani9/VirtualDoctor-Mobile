@@ -3,14 +3,17 @@ import math
 import google.generativeai as genai
 
 # --- 1. إعداد الذكاء الاصطناعي ---
+# تأكد من وضع المفتاح في ملف .streamlit/secrets.toml
 try:
     if "GEMINI_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         model = genai.GenerativeModel('gemini-1.5-flash')
+    else:
+        st.warning("⚠️ مفتاح API غير موجود في الإعدادات السرية.")
 except Exception as e:
-    st.error("فشل الاتصال بمحرك الذكاء الاصطناعي")
+    st.error(f"فشل الاتصال بمحرك الذكاء الاصطناعي: {e}")
 
-# --- 2. التنسيق المتطور (نفس الألوان والمسميات) ---
+# --- 2. التنسيق المتطور ---
 st.set_page_config(page_title="AI Doctor Baghdad", layout="centered")
 
 st.markdown(r'''
@@ -48,7 +51,6 @@ DATA = {
 }
 
 def calculate_dist(lat1, lon1, lat2, lon2):
-    # معادلة التربيع الصحيحة لحساب المسافة الجغرافية التقريبية
     return math.sqrt((lat1 - lat2)**2 + (lon1 - lon2)**2) * 111.13
 
 if 'step' not in st.session_state: st.session_state.step = 1
@@ -64,15 +66,14 @@ if st.session_state.step == 1:
         if name and phone:
             st.session_state.p_data = {"name": name, "area": u_area, "phone": phone}
             st.session_state.u_coords = AREAS_COORDS[u_area]
-            st.session_state.step = 2; st.rerun()
+            st.session_state.step = 2
+            st.rerun()
         else:
             st.error("يرجى ملء كافة الحقول")
 
 # --- الصفحة 2: AI DR ---
 elif st.session_state.step == 2:
     st.markdown('<div class="page-header">AI DR.⛑️</div>', unsafe_allow_html=True)
-    
-    # إخلاء المسؤولية
     st.markdown('''<div class="disclaimer-box">
             <strong style="color: #ff4b4b;">⚠️ إخلاء مسؤولية:</strong> 
             هذا النظام استرشادي وبرمجي أولي. في حالات الطوارئ القصوى توجه لأقرب مستشفى فوراً.
@@ -82,17 +83,20 @@ elif st.session_state.step == 2:
 
     if st.button("🔍 تحليل الحالة الآن"):
         with st.spinner("جاري التواصل مع الذكاء الاصطناعي..."):
-            prompt = f"حلل: '{text}'. حدد الاختصاص (قلبية، باطنية، جملة عصبية، مفاصل). الرد: الاختصاص: [الاسم]، التشخيص: [نص مطمئن]."
+            prompt = f"حلل: '{text}'. حدد الاختصاص (قلبية، باطنية، جملة عصبية، مفاصل). الرد يكون بصيغة: الاختصاص: [الاسم]، التشخيص: [نص مطمئن]."
             try:
                 response = model.generate_content(prompt)
                 res = response.text
-                st.session_state.spec = "باطنية"
+                spec_found = "باطنية"
                 for s in ["قلبية", "باطنية", "جملة عصبية", "مفاصل"]:
-                    if s in res: st.session_state.spec = s; break
+                    if s in res: 
+                        spec_found = s
+                        break
+                st.session_state.spec = spec_found
                 st.session_state.diag_msg = res.split("التشخيص:")[1].strip() if "التشخيص:" in res else res
                 st.session_state.diag_ready = True
             except Exception as e:
-    st.error(f"فشل الاتصال بمحرك الذكاء الاصطناعي: {e}")
+                st.error(f"حدث خطأ في التحليل: {e}")
     
     if st.session_state.get('diag_ready'):
         st.markdown(f'''<div class="diag-box">
@@ -106,6 +110,9 @@ elif st.session_state.step == 2:
         u_lat, u_lon = st.session_state.u_coords
         matches = [d for d in DATA["أطباء"] if d['s'] == st.session_state.spec]
         
+        if not matches:
+            st.info("لا يوجد أطباء مسجلين في هذا الاختصاص حالياً.")
+        
         for d in matches:
             dist = calculate_dist(u_lat, u_lon, d['lat'], d['lon'])
             st.markdown(f'''<div class="doc-card">
@@ -115,7 +122,8 @@ elif st.session_state.step == 2:
             </div>''', unsafe_allow_html=True)
             if st.button(f"حجز عند {d['n']}", key=d['n']):
                 st.session_state.selected_doc = d
-                st.session_state.step = 3; st.rerun()
+                st.session_state.step = 3
+                st.rerun()
 
 # --- الصفحة 3: الحجز ---
 elif st.session_state.step == 3:
@@ -125,8 +133,11 @@ elif st.session_state.step == 3:
     for i, t in enumerate(times):
         if cols[i].button(t, use_container_width=True):
             st.session_state.final_time = t
-            st.session_state.step = 4; st.rerun()
-    if st.button("⬅️ عودة"): st.session_state.step = 2; st.rerun()
+            st.session_state.step = 4
+            st.rerun()
+    if st.button("⬅️ عودة"): 
+        st.session_state.step = 2
+        st.rerun()
 
 # --- الصفحة 4: النجاح ---
 elif st.session_state.step == 4:

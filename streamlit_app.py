@@ -3,7 +3,6 @@ import math
 import google.generativeai as genai
 
 # --- 1. إعداد الذكاء الاصطناعي ---
-# تأكد من وضع المفتاح في ملف .streamlit/secrets.toml
 try:
     if "GEMINI_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -83,35 +82,29 @@ elif st.session_state.step == 2:
 
     if st.button("🔍 تحليل الحالة الآن"):
         with st.spinner("جاري التواصل مع الذكاء الاصطناعي..."):
-            prompt = f"حلل: '{text}'. حدد الاختصاص (قلبية، باطنية، جملة عصبية، مفاصل). الرد يكون بصيغة: الاختصاص: [الاسم]، التشخيص: [نص مطمئن]."
+            prompt = f"حلل: '{text}'. حدد الاختصاص (قلبية، باطنية، جملة عصبية، مفاصل). الرد: الاختصاص: [الاسم]، التشخيص: [نص مطمئن]."
             try:
                 response = model.generate_content(prompt)
                 res = response.text
-                spec_found = "باطنية"
+                st.session_state.spec = "باطنية"
                 for s in ["قلبية", "باطنية", "جملة عصبية", "مفاصل"]:
                     if s in res: 
-                        spec_found = s
+                        st.session_state.spec = s
                         break
-                st.session_state.spec = spec_found
                 st.session_state.diag_msg = res.split("التشخيص:")[1].strip() if "التشخيص:" in res else res
                 st.session_state.diag_ready = True
             except Exception as e:
-                st.error(f"حدث خطأ في التحليل: {e}")
+                st.error(f"فشل الاتصال بمحرك الذكاء الاصطناعي: {e}")
     
     if st.session_state.get('diag_ready'):
         st.markdown(f'''<div class="diag-box">
             <h4 style="color: #40E0D0;">🔍 نتيجة التحليل:</h4>
             <p>{st.session_state.diag_msg}</p>
-            <p>الاختصاص المقترح: <b>{st.session_state.spec}</b></p>
+            <p>الاخلصاص المقترح: <b>{st.session_state.spec}</b></p>
         </div>''', unsafe_allow_html=True)
 
-        st.markdown(f"### 🏥 أطباء {st.session_state.spec} القريبين من {st.session_state.p_data['area']}")
-        
         u_lat, u_lon = st.session_state.u_coords
         matches = [d for d in DATA["أطباء"] if d['s'] == st.session_state.spec]
-        
-        if not matches:
-            st.info("لا يوجد أطباء مسجلين في هذا الاختصاص حالياً.")
         
         for d in matches:
             dist = calculate_dist(u_lat, u_lon, d['lat'], d['lon'])

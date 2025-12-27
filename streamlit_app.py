@@ -3,23 +3,30 @@ import math
 import google.generativeai as genai
 import requests
 
-# --- 1. إعدادات الذكاء الاصطناعي ---
+# --- 1. إعدادات الذكاء الاصطناعي (تحديث للموديل لضمان الاستقرار) ---
 try:
     if "GEMINI_API_KEY" in st.secrets:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
-        model = genai.GenerativeModel('gemini-pro')
+        # استخدام موديل flash لسرعة الاستجابة وتجنب أخطاء الـ NotFound
+        model = genai.GenerativeModel('gemini-1.5-flash')
 except Exception as e:
     st.error(f"❌ خطأ اتصال بالذكاء الاصطناعي: {e}")
 
-# --- 2. وظيفة الموقع الجغرافي ---
+# --- 2. وظيفة الموقع (تعديل: حذف اليرموك كافتراضي) ---
 def detect_user_location_by_ip():
     try:
-        response = requests.get('https://ipapi.co/json/', timeout=5).json()
-        return {"city": response.get("city", "بغداد"), "region": response.get("region", "تحديد تلقائي"), "lat": response.get("latitude", 33.3152), "lon": response.get("longitude", 44.3661)}
+        response = requests.get('https://ipapi.co/json/', timeout=3).json()
+        return {
+            "city": response.get("city", "بغداد"),
+            "region": response.get("region", "تحديد تلقائي"),
+            "lat": response.get("latitude", 33.3152),
+            "lon": response.get("longitude", 44.3661)
+        }
     except:
-        return {"city": "بغداد", "region": "اليرموك", "lat": 33.3152, "lon": 44.3661}
+        # إرجاع قيم عامة دون فرض منطقة معينة
+        return {"city": "بغداد", "region": "تحديد تلقائي", "lat": 33.3152, "lon": 44.3661}
 
-# --- 3. التصميم النهائي المعتمد (CSS) ---
+# --- 3. التصميم المعتمد (رسمي، مريح، وفيروزي) ---
 st.set_page_config(page_title="AI Doctor", layout="centered")
 st.markdown(r'''
     <style>
@@ -27,16 +34,16 @@ st.markdown(r'''
     * { font-family: 'Tajawal', sans-serif; direction: rtl; text-align: right; }
     .stApp { background-color: #050505; color: #e0e0e0; }
     
-    /* الهوية الفيروزية الرسمية */
+    /* العناوين والترحيب باللون الفيروزي الرسمي */
     .app-title { text-align: center; color: #40E0D0; font-size: 42px; font-weight: 700; margin-bottom: 5px; }
-    .welcome-label { text-align: center; color: #40E0D0; font-size: 18px; margin-bottom: 0px; opacity: 0.9; }
+    .welcome-note { text-align: center; color: #40E0D0; font-size: 19px; opacity: 0.8; margin-bottom: 0px; }
     .user-name-title { 
         color: #40E0D0; font-size: 45px; font-weight: 700; text-align: center; display: block; 
-        margin-bottom: 30px; text-shadow: 0 4px 15px rgba(64,224,208,0.2);
+        margin-bottom: 30px; text-shadow: 0 4px 20px rgba(64,224,208,0.2);
     }
     
-    /* المربعات الموحدة (إطار فيروزي صلب) */
-    .main-card { 
+    /* الإطارات المتصلة (نفس مربع التشخيص لراحة العين) */
+    .standard-card { 
         border: 2px solid #40E0D0; 
         background: rgba(64, 224, 208, 0.02); 
         padding: 22px; 
@@ -44,8 +51,8 @@ st.markdown(r'''
         margin-bottom: 20px; 
     }
     
-    /* التنبيه الأصفر المتناسق */
-    .alert-card { 
+    /* إطار التنبيه الأصفر (متصل وليس منقط) */
+    .warning-card { 
         border: 2px solid #f1c40f; 
         background: rgba(241, 196, 15, 0.05); 
         padding: 15px; 
@@ -54,18 +61,18 @@ st.markdown(r'''
         margin-bottom: 20px; 
     }
     
-    .location-tag { border: 1px dashed #40E0D0; padding: 10px; border-radius: 10px; text-align: center; color: #40E0D0; margin-bottom: 20px; }
+    .location-box { border: 1px dashed #40E0D0; padding: 10px; border-radius: 10px; text-align: center; color: #40E0D0; margin-bottom: 20px; }
 
-    /* تنسيق المواعيد الأفقية */
+    /* المواعيد الأفقية */
     [data-testid="column"] { flex: 1 !important; min-width: 85px !important; }
     .stButton button { width: 100% !important; border-radius: 8px !important; font-weight: 500; }
     
-    .cyan-bold { color: #40E0D0; font-weight: bold; }
-    .leaf-icon { font-size: 28px; color: #40E0D0; text-align: center; display: block; margin: 10px 0; }
+    .highlight-cyan { color: #40E0D0; font-weight: bold; }
+    .nature-icon { font-size: 30px; color: #40E0D0; text-align: center; display: block; margin: 10px 0; }
     </style>
     ''', unsafe_allow_html=True)
 
-# --- 4. محاكاة قاعدة البيانات ---
+# --- 4. قاعدة البيانات ---
 DATA = {
     "أطباء": [
         {"n": "د. علي الركابي", "s": "قلبية", "a": "الحارثية", "lat": 33.3222, "lon": 44.3585, "stars": 5, "slots": {"03:00 PM": True, "04:30 PM": False, "06:00 PM": True}, "phone": "07701234567"},
@@ -85,8 +92,8 @@ if st.session_state.step == 1:
     user_loc = detect_user_location_by_ip()
     st.session_state.detected_location = user_loc
     
-    st.markdown(f'<div class="location-tag">📍 الموقع الحالي: {user_loc["city"]} - {user_loc["region"]}</div>', unsafe_allow_html=True)
-    st.markdown('<div class="alert-card">⚠️ <b>تنبيه استشاري:</b> هذا النظام أداة مساعدة ذكية، ولا يغني عن المراجعة الطبية المباشرة.</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="location-box">📍 الموقع الحالي: {user_loc["city"]} - {user_loc["region"]}</div>', unsafe_allow_html=True)
+    st.markdown('<div class="warning-card">⚠️ <b>تنبيه استشاري رسمي:</b> هذا النظام أداة مساعدة، ولا يغني عن الفحص السريري المباشر أو زيارة المشفى.</div>', unsafe_allow_html=True)
     
     name = st.text_input("الأسم الكامل")
     phone = st.text_input("رقم الهاتف")
@@ -95,38 +102,40 @@ if st.session_state.step == 1:
             st.session_state.p_info = {"name": name, "phone": phone}
             st.session_state.step = 2; st.rerun()
 
-# --- المرحلة 2: التشخيص واختيار الطبيب ---
+# --- المرحلة 2: التحليل والعرض ---
 elif st.session_state.step == 2:
-    st.markdown(f'<div class="welcome-label">Welcome to AI Doctor ⛑️</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="welcome-note">Welcome to AI Doctor ⛑️</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="user-name-title">{st.session_state.p_info["name"]}</div>', unsafe_allow_html=True)
     
-    text = st.text_area("اشرح حالتك الصحية باختصار:")
+    text = st.text_area("اشرح حالتك الصحية باختصار:", placeholder="مثال: أشعر بضيق تنفس وألم جهة الصدر...")
 
     if st.button("بدء تحليل الحالة", use_container_width=True):
-        with st.spinner("جاري التحليل الفني..."):
-            spec = "قلبية" if any(w in text for w in ["قلب", "صدر", "نفس"]) else "باطنية"
+        with st.spinner("جاري التحليل الذكي..."):
+            u_lat = st.session_state.detected_location['lat']
+            u_lon = st.session_state.detected_location['lon']
+            spec = "قلبية" if any(w in text for w in ["قلب", "صدر", "نفس"]) else "مفاصل" if "مفصل" in text else "باطنية"
             matches = [d for d in DATA["أطباء"] if d['s'] == spec] or DATA["أطباء"]
-            u_loc = st.session_state.detected_location
-            for d in matches: d['d_km'] = calculate_dist(u_loc['lat'], u_loc['lon'], d['lat'], d['lon'])
+            for d in matches: d['d_km'] = calculate_dist(u_lat, u_lon, d['lat'], d['lon'])
             
             best_doc = sorted(matches, key=lambda x: (x['d_km'], -x['stars']))[0]
             first_slot = next((t for t, s in best_doc['slots'].items() if s), "3:00 PM")
 
-            prompt = f"حلل بدقة: '{text}'. اذكر التشخيص والنسبة المئوية (Bold). انصح بمراجعة {best_doc['n']}."
+            prompt = f"حلل بدقة: '{text}'. اذكر التشخيص والنسبة المئوية (Bold). انصح بزيارة {best_doc['n']}."
             response = model.generate_content(prompt)
             st.session_state.diag_res = response.text.replace("%", "*%*")
-            st.session_state.ai_rec = f"💡 *توصية ذكية:* ننصحك بحجز موعد عند <span class='cyan-bold'>{best_doc['n']}</span> في موعد <span class='cyan-bold'>{first_slot}</span>."
+            st.session_state.ai_advice = f"💡 *التوصية:* ننصحك بحجز موعد عند <span class='highlight-cyan'>{best_doc['n']}</span> في موعد <span class='highlight-cyan'>{first_slot}</span>."
             st.session_state.diag_ready = True
 
     if st.session_state.get('diag_ready'):
-        st.markdown(f'<div class="main-card"><b>التشخيص المبدئي:</b><br>{st.session_state.diag_res}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="main-card" style="border-right: 8px solid #40E0D0;">{st.session_state.ai_rec}</div>', unsafe_allow_html=True)
+        # إطارات متصلة (Solid) للتشخيص والتوصية
+        st.markdown(f'<div class="standard-card"><b>التشخيص المبدئي:</b><br>{st.session_state.diag_res}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="standard-card" style="border-right: 10px solid #40E0D0;">{st.session_state.ai_advice}</div>', unsafe_allow_html=True)
         
         st.write("### قائمة الأطباء المتاحين:")
         for d in DATA["أطباء"]:
             dist = calculate_dist(st.session_state.detected_location['lat'], st.session_state.detected_location['lon'], d['lat'], d['lon'])
             st.markdown(f'''
-                <div class="main-card">
+                <div class="standard-card">
                     <b style="color:#40E0D0; font-size:18px;">{d['n']}</b> | <small>{d['s']}</small><br>
                     <span style="color:#f1c40f;">{"⭐" * d['stars']}</span> | يبعد {dist:.1f} كم 📍
                 </div>
@@ -140,21 +149,21 @@ elif st.session_state.step == 2:
                             st.session_state.selected_doc = d; st.session_state.final_time = time; st.session_state.step = 3; st.rerun()
                     else: st.button(f"🔒 {time}", key=f"{d['n']}-{time}-l", disabled=True)
 
-# --- المرحلة 3: صفحة النجاح الرسمية ---
+# --- المرحلة 3: صفحة النجاح (الغصن 🌿) ---
 elif st.session_state.step == 3:
     st.markdown(f'''
-        <div class="main-card" style="text-align:center;">
-            <div class="leaf-icon">🌿</div>
-            <h2 style="color:#40E0D0;">تأكيد موعد الحجز</h2>
-            <div style="text-align:right; line-height:2.2; margin-top:20px;">
+        <div class="standard-card" style="text-align:center;">
+            <div class="nature-icon">🌿</div>
+            <h2 style="color:#40E0D0; margin-bottom:20px;">تم تأكيد حجز الموعد</h2>
+            <div style="text-align:right; line-height:2.2;">
                 <p>👤 <b>المريض:</b> {st.session_state.p_info['name']}</p>
-                <p>👨‍⚕️ <b>الطبيب:</b> {st.session_state.selected_doc['n']}</p>
-                <p>🕒 <b>الموعد:</b> {st.session_state.final_time}</p>
+                <p>👨‍⚕️ <b>الطبيب المختص:</b> {st.session_state.selected_doc['n']}</p>
+                <p>🕒 <b>وقت الموعد:</b> اليوم الساعة {st.session_state.final_time}</p>
                 <p>📍 <b>العنوان:</b> {st.session_state.selected_doc['a']}</p>
-                <p>📞 <b>للتواصل:</b> <span class="cyan-bold">{st.session_state.selected_doc['phone']}</span></p>
+                <p>📞 <b>للتواصل:</b> <span class="highlight-cyan">{st.session_state.selected_doc['phone']}</span></p>
             </div>
-            <div class="leaf-icon">🌿</div>
-            <p style="color:#888; font-size:14px;">تمنياتنا لك بالشفاء العاجل</p>
+            <div class="nature-icon">🌿</div>
+            <p style="color:#888; font-size:14px; margin-top:10px;">نتمنى لك تمام الصحة والعافية</p>
         </div>
     ''', unsafe_allow_html=True)
     if st.button("العودة للرئيسية", use_container_width=True): st.session_state.step = 1; st.rerun()

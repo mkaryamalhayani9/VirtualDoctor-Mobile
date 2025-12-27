@@ -82,7 +82,7 @@ SYMPTOM_KEYWORDS = {
 }
 
 def calculate_dist(lat1, lon1, lat2, lon2):
-    return math.sqrt((lat1-lat2)*2 + (lon1-lon2)*2) * 111.13
+    return math.sqrt((lat1-lat2)**2 + (lon1-lon2)**2) * 111.13
 
 if 'step' not in st.session_state:
     st.session_state.step = 1
@@ -154,7 +154,6 @@ elif st.session_state.step ==2:
                 if st.button("🏥 تحويل تلقائي لأقرب طبيب متاح"):
                     st.session_state.step = 3
                     st.rerun()
-
 AVAILABLE_SLOTS = {
     "03:00 PM": True,
     "04:30 PM": False,

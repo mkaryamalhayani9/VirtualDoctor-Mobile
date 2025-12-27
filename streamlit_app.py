@@ -84,7 +84,7 @@ def calculate_dist(lat1, lon1, lat2, lon2):
 # --- الصفحة 1: Welcome to AI Doctor 🩺 ---
 if st.session_state.step == 1:
     st.markdown('<div class="welcome-title">Welcome to AI Doctor 🩺</div>', unsafe_allow_html=True)
-    st.markdown('<div class="ai-warning">⚠️ نظام ذكاء اصطناعي للتحليل الفوري لمناطق بغداد كافة.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="ai-warning">⚠️ تنبيه: هذا النظام يعمل بالذكاء الاصطناعي للمساعدة في التشخيص ، لا يعوض عن الفحص الطبي المباشر في الحالات الحرج .</div>', unsafe_allow_html=True)
     with st.container():
         name = st.text_input("الأسم الكامل")
         u_area = st.selectbox("اختر منطقتك الحالية:", sorted(list(AREAS_COORDS.keys())))
@@ -102,7 +102,7 @@ if st.session_state.step == 1:
 
 # --- الصفحة 2: ⛑️ Ai Dr. ---
 elif st.session_state.step == 2:
-    st.markdown('<div class="page-header">⛑️ Ai Dr.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="page-header">⛑️ AI DR.</div>', unsafe_allow_html=True)
     sels = st.multiselect("اختر الأعراض (يمكنك اختيار أكثر من عارض):", list(DATA["أعراض"].keys()))
     if sels:
         sorted_sels = sorted(sels, key=lambda x: DATA["أعراض"][x][2], reverse=True)

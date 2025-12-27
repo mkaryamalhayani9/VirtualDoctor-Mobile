@@ -102,42 +102,119 @@ if st.session_state.step == 1:
             st.rerun()
 
 # --- الصفحة 2 ---
-elif st.session_state.step == 2:
+elif st.session_state.step ==2:
     st.markdown('<div class="page-header">AI DR ⛑️</div>', unsafe_allow_html=True)
-    text = st.text_area("اشرح حالتك الصحية:", height=150)
 
-    detected = []
-    for s, keys in SYMPTOM_KEYWORDS.items():
-        if any(k in text.lower() for k in keys):
-            detected.append(s)
+    text = st.text_area("📝 اشرح حالتك الصحية بالتفصيل:", height=160)
 
-    if detected:
-        top = sorted(detected, key=lambda x: DATA["أعراض"][x][2], reverse=True)[0]
-        spec, diag, urg = DATA["أعراض"][top]
-        accuracy = int(min(82.4 + len(detected)*4.2, 99.1))
-        st.session_state.spec = spec
+    if st.button("🔍 تشخيص الآن"):
+        with st.spinner("🔎 جاري تحليل الحالة الطبية..."):
+            detected = []
+            for s, keys in SYMPTOM_KEYWORDS.items():
+                if any(k in text.lower() for k in keys):
+                    detected.append(s)
 
-        if urg >= 9:
-            st.markdown(f'<div class="emergency-box"><h3>{diag}</h3><p>دقة التحليل: {accuracy}%</p></div>', unsafe_allow_html=True)
+        if not detected:
+            st.warning("⚠️ لم نتمكن من تحديد الأعراض، يرجى الشرح بشكل أوضح.")
         else:
-            st.markdown(f'<div class="diag-box"><h3>{diag}</h3><p>دقة التحليل: {accuracy}%</p></div>', unsafe_allow_html=True)
+            top = sorted(
+                detected,
+                key=lambda x: DATA["أعراض"][x][2],
+                reverse=True
+            )[0]
 
-        if st.button("حجز موعد"):
-            st.session_state.step = 3
-            st.rerun()
+            spec, diag, urg = DATA["أعراض"][top]
+            accuracy = int(min(82.4 + len(detected) * 4.2, 99.1))
+
+            st.session_state.spec = spec
+            st.session_state.diag_ready = True
+
+            if urg >= 9:
+                st.markdown(
+                    f'''
+                    <div class="emergency-box">
+                        <h3>{diag}</h3>
+                        <p>دقة التحليل: {accuracy}%</p>
+                        <p>🚨 يرجى التوجه فوراً لأقرب طوارئ</p>
+                    </div>
+                    ''',
+                    unsafe_allow_html=True
+                )
+            else:
+                st.markdown(
+                    f'''
+                    <div class="diag-box">
+                        <h3>{diag}</h3>
+                        <p>دقة التحليل: {accuracy}%</p>
+                    </div>
+                    ''',
+                    unsafe_allow_html=True
+                )
+
+                if st.button("🏥 تحويل تلقائي لأقرب طبيب متاح"):
+                    st.session_state.step = 3
+                    st.rerun()
+
+AVAILABLE_SLOTS = {
+    "03:00 PM": True,
+    "04:30 PM": False,
+    "06:00 PM": True,
+    "07:30 PM": False,
+    "09:00 PM": True
+}
 
 # --- الصفحة 3 ---
 elif st.session_state.step == 3:
-    u_lat,u_lon = st.session_state.coords
-    matches = [d for d in DATA["أطباء"] if d["s"]==st.session_state.spec]
-    for d in matches:
-        d["dist"] = calculate_dist(u_lat,u_lon,d["lat"],d["lon"])
-    for d in sorted(matches, key=lambda x:x["dist"]):
-        st.markdown(f'<div class="doc-card">{d["n"]} - {d["a"]} ({d["dist"]:.1f} كم)</div>', unsafe_allow_html=True)
-        if st.button(f"حجز مع {d['n']}"):
-            st.session_state.step = 4
-            st.session_state.final = d
-            st.rerun()
+    st.markdown('<div class="page-header">🏥 أقرب طبيب متاح</div>', unsafe_allow_html=True)
+
+    u_lat, u_lon = st.session_state.coords
+    spec = st.session_state.spec
+
+    matches = []
+    for d in DATA["أطباء"]:
+        if d["s"] == spec:
+            dist = calculate_dist(u_lat, u_lon, d["lat"], d["lon"])
+            if any(AVAILABLE_SLOTS.values()):  # عنده وقت متاح
+                d_copy = d.copy()
+                d_copy["dist"] = dist
+                matches.append(d_copy)
+
+    if not matches:
+        st.warning("❌ لا يوجد أطباء متاحين حالياً لهذا التخصص.")
+    else:
+        matches = sorted(matches, key=lambda x: x["dist"])
+
+        # نختار الأقرب تلقائياً
+        best = matches[0]
+
+        st.markdown(
+            f'''
+            <div class="doc-card">
+                <h3 style="color:#40E0D0;">👨‍⚕️ {best['n']}</h3>
+                <p>الاختصاص: {best['s']}</p>
+                <p>📍 بغداد - {best['a']} ({best['dist']:.1f} كم)</p>
+                <p>⭐ {"⭐"*best['stars']}</p>
+            </div>
+            ''',
+            unsafe_allow_html=True
+        )
+
+        st.markdown("### ⏰ الأوقات المتاحة")
+        cols = st.columns(len(AVAILABLE_SLOTS))
+        for i, (t, ok) in enumerate(AVAILABLE_SLOTS.items()):
+            with cols[i]:
+                if ok:
+                    if st.button(f"✅ {t}", key=f"{best['n']}_{t}"):
+                        st.session_state.final = {
+                            "doc": best["n"],
+                            "time": t,
+                            "area": best["a"],
+                            "phone": best["p"]
+                        }
+                        st.session_state.step = 4
+                        st.rerun()
+                else:
+                    st.button(f"🔒 {t}", disabled=True)
 
 # --- الصفحة 4 ---
 elif st.session_state.step == 4:

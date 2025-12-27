@@ -220,4 +220,7 @@ elif st.session_state.step == 3:
 elif st.session_state.step == 4:
     d = st.session_state.final
     p = st.session_state.p
-    st.markdown(f'<div class="success-card"><h2>تم الحجز ✅</h2><p>{p["name"]}</p><p>{d["n"]}</p><p>{d["p"]}</p></div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="success-card"><h2>تم الحجز ✅</h2><p>{p["name"]}</p><p>{d["doc"]}</p><p>{d["phone"]}</p></div>',
+        unsafe_allow_html=True
+    )

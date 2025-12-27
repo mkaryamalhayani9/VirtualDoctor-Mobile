@@ -92,12 +92,10 @@ if 'step' not in st.session_state: st.session_state.step = 1
 
 def calculate_dist(lat1, lon1, lat2, lon2):
     if lat1 is None or lat2 is None: return 0.0
-    return math.sqrt((lat1 - lat2)*2 + (lon1 - lon2)*2) * 111.13
-
-# --- الصفحة 1: Welcome to AI Doctor 🩺 ---
+return math.sqrt((lat1 - lat2)**2 + (lon1 - lon2)**2) * 111.13# --- الصفحة 1: Welcome to AI Doctor 🩺 ---
 if st.session_state.step == 1:
     st.markdown('<div class="welcome-title">Welcome to AI Doctor 🩺</div>', unsafe_allow_html=True)
-    st.markdown('<div class="ai-warning">⚠️ تنبيه: هذا النظام يعمل بالذكاء الاصطناعي للمساعدة في التشخيص، لا يعوض عن الفحص الطبي المباشر في الحالات الحرجة.</div>', unsafe_allow_html=True) .</div>', unsafe_allow_html=True)
+st.markdown('<div class="ai-warning">⚠️ تنبيه: هذا النظام يعمل بالذكاء الاصطناعي للمساعدة في التشخيص، لا يعوض عن الفحص الطبي المباشر في الحالات الحرجة.</div>', unsafe_allow_html=True)
     with st.container():
         name = st.text_input("الأسم الكامل")
         u_area = st.selectbox("اختر منطقتك الحالية:", sorted(list(AREAS_COORDS.keys())))
@@ -106,9 +104,8 @@ if st.session_state.step == 1:
             if name and phone:
                 st.session_state.p_data = {"name": name, "area": u_area, "phone": phone}
                 loc = get_geolocation()
-                st.session_state.u_coords = (loc['coords']['latitude'], loc['coords']['longitude']) if loc and 'coords' in loc else AREAS_COORDS[u_area]
-                st.session_state.step = 2; st.rerun()
-
+        st.session_state.u_coords = (loc['coords']['latitude'], loc['coords']['longitude']) if loc and 'coords' in loc else AREAS_COORDS[u_area]
+        st.session_state.step = 2; st.rerun() 
 # --- الصفحة 2: ⛑️ Ai Dr. ---
 elif st.session_state.step == 2:
     st.markdown('<div class="page-header">⛑️AI DR. </div>', unsafe_allow_html=True)

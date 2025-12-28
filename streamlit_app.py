@@ -77,10 +77,12 @@ if st.session_state.step == 1:
             st.session_state.p_info = {"name": name, "phone": phone}
             st.session_state.step = 2; st.rerun()
 
-# --- المرحلة 2: التحليل والعرض ---
+
 elif st.session_state.step == 2:
+    st.markdown('<div class="welcome-text">Welcome to AI Doctor ⛑️</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="user-highlight">{st.session_state.p_info["name"]}</div>', unsafe_allow_html=True)
-    text = st.text_area("اشرح حالتك الصحية:")
+    
+    text = st.text_area("تفضل بشرح حالتك الصحية لنرشدك للطبيب الأنسب:")
     if st.button("بدء تحليل الحالة", use_container_width=True):
         with st.spinner("جاري التحليل..."):
             res = safe_ai_analysis(text)
@@ -90,11 +92,15 @@ elif st.session_state.step == 2:
             st.session_state.diag_ready = True
 
     if st.session_state.get('diag_ready'):
-        st.markdown(f'<div class="main-card">{st.session_state.diag_res}</div>', unsafe_allow_html=True)
+        # نتيجة التشخيص
+        st.markdown(f'<div class="main-card"><b>نتيجة التحليل:</b><br>{st.session_state.diag_res}</div>', unsafe_allow_html=True)
+        
+        # التنبيه الطبي اللطيف يظهر هنا (بعد التشخيص)
+        st.markdown('<div class="medical-notice">ملاحظة: هذه الاستشارة ناتجة عن تحليل ذكاء اصطناعي للأعراض، وهي خطوة استرشادية لتوجيهك للاختصاص الصحيح ولا تعتبر بديلاً عن الفحص الطبي الدقيق.</div>', unsafe_allow_html=True)
+        
         st.write("### 👨‍⚕️ الأطباء الموصى بهم:")
         
         for index, d in enumerate(st.session_state.filtered_docs):
-            # وسم التوصية للطبيب الأول فقط
             rec_tag = '<span style="background:#f1c40f; color:#000; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:bold; margin-right:10px;">⭐ مرشح الذكاء الاصطناعي</span>' if index == 0 else ""
             glow = "border: 1px solid #f1c40f;" if index == 0 else ""
 
@@ -106,7 +112,7 @@ elif st.session_state.step == 2:
                     </div>
                     <div style="margin-top:8px; margin-bottom:10px;">
                         <span class="doc-tag">{d["s"]}</span>
-                        <span style="font-size:12px; color:#bbb;">📍 {d["a"]} | 🚗 يبعد {d["dist"]} كم</span>
+                        <span style="font-size:12px; color:#bbb;">📍 {d["a"]} | 🚗 يبعد {d["dist"]} كم عنك</span>
                     </div>
                 </div>
             ''', unsafe_allow_html=True)
@@ -116,8 +122,7 @@ elif st.session_state.step == 2:
                 with cols[i]:
                     if st.button(f"✅ {time}" if is_available else f"🔒 {time}", key=f"{d['n']}-{time}", disabled=not is_available, use_container_width=True):
                         st.session_state.selected_doc, st.session_state.final_time = d, time
-                        st.session_state.step = 3; st.rerun()
-
+                        st.session_state.step = 3; st.rerun(
 # --- المرحلة 3: تأكيد الحجز ---
 elif st.session_state.step == 3:
     st.markdown(f'''

@@ -122,7 +122,7 @@ elif st.session_state.step == 2:
                 with cols[i]:
                     if st.button(f"✅ {time}" if is_available else f"🔒 {time}", key=f"{d['n']}-{time}", disabled=not is_available, use_container_width=True):
                         st.session_state.selected_doc, st.session_state.final_time = d, time
-                        st.session_state.step = 3; st.rerun(
+                        st.session_state.step = 3; st.rerun()
 # --- المرحلة 3: تأكيد الحجز ---
 elif st.session_state.step == 3:
     st.markdown(f'''

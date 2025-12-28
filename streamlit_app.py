@@ -1,4 +1,4 @@
-import streamlit as st
+mport streamlit as st
 import google.generativeai as genai
 import requests
 
@@ -39,13 +39,15 @@ st.markdown(r'''
     * { font-family: 'Tajawal', sans-serif; direction: rtl; text-align: right; }
     .stApp { background-color: #080808; color: #ffffff; }
     .app-title { text-align: center; color: #40E0D0; font-size: 38px; font-weight: 700; margin-bottom: 5px; }
-    .user-highlight { color: #40E0D0; font-size: 42px; font-weight: 700; text-align: center; display: block; margin-bottom: 25px; }
+    .user-highlight { color: #40E0D0; font-size: 42px; font-weight: 700; text-align: center; display: block; margin: 20px auto; width: 100%; }
     .main-card { border: 1px solid rgba(64, 224, 208, 0.3); background: rgba(255, 255, 255, 0.03); padding: 20px; border-radius: 12px; margin-bottom: 15px; }
     .location-bar { border: 1px dashed #40E0D0; padding: 8px; border-radius: 10px; text-align: center; color: #40E0D0; margin-bottom: 20px; font-size: 13px; }
     .doc-tag { font-size: 11px; background: #40E0D0; color: #000; padding: 2px 10px; border-radius: 4px; font-weight: bold; margin-left: 5px; }
     .final-receipt { border: 2px solid #40E0D0; background: #111111; border-radius: 15px; overflow: hidden; }
     .receipt-header { background: #40E0D0; color: #000; padding: 20px; text-align: center; font-size: 22px; font-weight: bold; }
     .receipt-body { padding: 25px; line-height: 2.2; }
+    .golden-notice { color: #D4AF37; font-size: 12px; text-align: center; margin-top: 15px; padding: 10px; border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 8px; }
+    .welcome-text { text-align: center; color: #40E0D0; font-size: 24px; font-weight: 500; margin-top: 10px; }
     </style>
     ''', unsafe_allow_html=True)
 
@@ -76,10 +78,11 @@ if st.session_state.step == 1:
         if name and phone:
             st.session_state.p_info = {"name": name, "phone": phone}
             st.session_state.step = 2; st.rerun()
+    st.markdown('<div class="golden-notice">⚠️ تنبيه: هذا الموقع لا يغني عن استشارة الطبيب المختص والفحص السريري.</div>', unsafe_allow_html=True)
 
 
 elif st.session_state.step == 2:
-    st.markdown('<div class="welcome-text">Welcome to AI Doctor ⛑️</div>', unsafe_allow_html=True)
+    st.markdown('<div class="welcome-text">أهلاً بك في AI Doctor ⛑️</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="user-highlight">{st.session_state.p_info["name"]}</div>', unsafe_allow_html=True)
     
     text = st.text_area("تفضل بشرح حالتك الصحية لنرشدك للطبيب الأنسب:")
@@ -92,11 +95,8 @@ elif st.session_state.step == 2:
             st.session_state.diag_ready = True
 
     if st.session_state.get('diag_ready'):
-        # نتيجة التشخيص
         st.markdown(f'<div class="main-card"><b>نتيجة التحليل:</b><br>{st.session_state.diag_res}</div>', unsafe_allow_html=True)
-        
-        # التنبيه الطبي اللطيف يظهر هنا (بعد التشخيص)
-        st.markdown('<div class="medical-notice">ملاحظة: هذه الاستشارة ناتجة عن تحليل ذكاء اصطناعي للأعراض، وهي خطوة استرشادية لتوجيهك للاختصاص الصحيح ولا تعتبر بديلاً عن الفحص الطبي الدقيق.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="medical-notice" style="font-size:12px; opacity:0.8;">ملاحظة: هذه الاستشارة ناتجة عن تحليل ذكاء اصطناعي للأعراض، وهي خطوة استرشادية لتوجيهك للاختصاص الصحيح.</div>', unsafe_allow_html=True)
         
         st.write("### 👨‍⚕️ الأطباء الموصى بهم:")
         
@@ -123,6 +123,7 @@ elif st.session_state.step == 2:
                     if st.button(f"✅ {time}" if is_available else f"🔒 {time}", key=f"{d['n']}-{time}", disabled=not is_available, use_container_width=True):
                         st.session_state.selected_doc, st.session_state.final_time = d, time
                         st.session_state.step = 3; st.rerun()
+
 # --- المرحلة 3: تأكيد الحجز ---
 elif st.session_state.step == 3:
     st.markdown(f'''
